@@ -155,23 +155,16 @@ struct Vision {
     float range = 500.0f;
 };
 
-enum EspFeat {
-    FeatBox = 0,
-    FeatName,
-    FeatHealth,
-    FeatDist,
-    FeatSkel,
-    FeatSnap,
-    FeatCount
-};
+using EspFeat = esp::EspFeat;
+inline constexpr auto FeatBox = esp::FeatBox;
+inline constexpr auto FeatName = esp::FeatName;
+inline constexpr auto FeatHealth = esp::FeatHealth;
+inline constexpr auto FeatDist = esp::FeatDist;
+inline constexpr auto FeatSkel = esp::FeatSkel;
+inline constexpr auto FeatSnap = esp::FeatSnap;
+inline constexpr auto FeatCount = esp::FeatCount;
 
-struct Coat {
-    int feat = 0;
-    int vis[ FeatCount ] = { 3, 9, 0, 9, 3, 3 };
-    int hid[ FeatCount ] = { 12, 12, 11, 12, 12, 12 };
-    int globVis = 3;
-    int globHid = 12;
-};
+using Coat = esp::Coat;
 
 struct Vault {
     char names[ store::SlotMax ][ store::NameCap ] = { };
@@ -230,24 +223,13 @@ static const CColor EspTints[ ] = {
 };
 
 static CColor FeatColor( int Feat, bool Seen ) {
-    int Pick = Seen ? Dye.vis[ Feat ] : Dye.hid[ Feat ];
-    if ( Pick < 0 || Pick >= 13 )
-        Pick = 3;
+    int Pick = esp::PickFeatTint( Dye, Feat, Seen, 3 );
     return EspTints[ Pick ];
 }
 
 static Vault Packs;
 
-struct Channel {
-    bool open = false;
-    bool dismissed = false;
-    bool mismatch = false;
-    unsigned nextScan = 0;
-    char client[ 48 ] = { };
-    char dump[ 48 ] = { };
-};
-
-static Channel LiveCh;
+static offsets::ChannelState LiveCh;
 static bool ChanMouse = false;
 
 static bool KeyWas[ 256 ] = { };
@@ -306,10 +288,7 @@ static bool Moving( ) {
 }
 
 static bool Edge( int Key, bool& Prior ) {
-    bool Now = Held( Key );
-    bool Hit = Now && !Prior;
-    Prior = Now;
-    return Hit;
+    return ui::DetectRisingEdge( Held( Key ), Prior );
 }
 
 static CVector Cursor( ) {
@@ -333,8 +312,10 @@ static bool CursorVisible( ) {
 
 static CVector ScreenMid( ) {
     const world::Snap& Live = world::View( );
-    if ( Live.clientW > 64 && Live.clientH > 64 ) {
-        POINT Mid{ Live.clientX + Live.clientW / 2, Live.clientY + Live.clientH / 2 };
+    if ( ui::IsClientDimValid( Live.clientW, Live.clientH ) ) {
+        float MidX = 0.0f, MidY = 0.0f;
+        ui::ComputeScreenMid( Live.clientX, Live.clientY, Live.clientW, Live.clientH, MidX, MidY );
+        POINT Mid{ ( LONG )MidX, ( LONG )MidY };
         HWND Overlay = ( HWND )ur::app::window( );
         if ( Overlay )
             ScreenToClient( Overlay, &Mid );
@@ -426,7 +407,7 @@ static void Clamp( float Across, float Vertical, float Wide, float Tall ) {
 
 static void Gate( bool Over, const CVector& Point ) {
     ur::overlay::Options& Overlay = ur::app::overlay_options( );
-    bool Through = !Over && !Moving( ) && !Menu.slide;
+    bool Through = ui::ComputeClickThrough( Over, Moving( ), Menu.slide );
     if ( Overlay.click_through != Through )
         Overlay.click_through = Through;
 
@@ -459,23 +440,11 @@ static const char* KeyLabel( int Code ) {
 }
 
 static int PollBind( bool Mouse1 ) {
-    int Hit = 0;
-    for ( int Code = 1; Code < 256; Code++ ) {
-        if ( Code == VK_ESCAPE )
-            continue;
-        if ( Code == VK_LBUTTON && !Mouse1 )
-            continue;
-        bool Now = Held( Code );
-        if ( Now && !KeyWas[ Code ] )
-            Hit = Code;
-        KeyWas[ Code ] = Now;
-    }
-    return Hit;
+    return ui::PollKeyBind( Mouse1, Held, KeyWas );
 }
 
 static void SyncBindKeys( ) {
-    for ( int Code = 1; Code < 256; Code++ )
-        KeyWas[ Code ] = Held( Code );
+    ui::SyncKeyHistory( Held, KeyWas );
 }
 
 static void Pace( ) {
@@ -494,18 +463,18 @@ static void Pace( ) {
     if ( !Menu.limit )
         return;
 
-    float Cap = play::ClampFpsLimit( Menu.fps );
+    double Goal = play::ComputeFrameGoalTime( Menu.fps );
 
     LARGE_INTEGER Now = { };
     QueryPerformanceCounter( &Now );
     if ( Last.QuadPart != 0 ) {
-        double Goal = 1.0 / ( double )Cap;
         for ( ;; ) {
             QueryPerformanceCounter( &Now );
             double Spent = ( double )( Now.QuadPart - Last.QuadPart ) / ( double )Freq.QuadPart;
-            if ( Spent >= Goal )
+            int Action = play::ComputeFramePacingAction( Goal, Spent );
+            if ( Action == 0 )
                 break;
-            if ( Goal - Spent > 0.002 )
+            if ( Action == 1 )
                 Sleep( 1 );
         }
     }
@@ -542,29 +511,25 @@ static void DrawIce( const CRectangle& Clip, const CRectangle& Fill, float Round
 static void DrawTitle( const CRectangle& Header, float Scale, const char* Title ) {
     EnsureTitle( Scale );
     CVector Size = TitleFace.Measure( Title );
-    float LogoSize = 25.0f * Scale;
-    float Gap = 8.0f * Scale;
     unsigned long long Logo = LogoPath.empty( ) ? 0 : ur::image::file( LogoPath.c_str( ), 64 );
-    float Total = Size.Horizontal + ( Logo ? LogoSize + Gap : 0.0f );
-    float Left = Header.Left + ( Header.Width - Total ) * 0.5f;
-    float Top = Header.Top + ( Header.Height - TitleFace.LineSpan ) * 0.5f;
+    ui::RectBounds LogoB;
+    float TextX = 0.0f, TextY = 0.0f;
+    ui::ComputeTitleLayout( Header.Left, Header.Top, Header.Width, Header.Height,
+                            Size.Horizontal, TitleFace.LineSpan, Logo != 0, Scale,
+                            LogoB, TextX, TextY );
     if ( Logo )
-        Canvas->Image( CRectangle( Left, Header.Top + ( Header.Height - LogoSize ) * 0.5f, LogoSize, LogoSize ), Logo, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), CColor( 255, 255, 255 ), LogoSize * 0.18f );
-    Left += Logo ? LogoSize + Gap : 0.0f;
-    Canvas->Write( &TitleFace, CVector( Left, Top ), Dress.inkHot.Fade( 0.93f ), Title );
+        Canvas->Image( CRectangle( LogoB.left, LogoB.top, LogoB.width, LogoB.height ), Logo, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), CColor( 255, 255, 255 ), LogoB.width * 0.18f );
+    Canvas->Write( &TitleFace, CVector( TextX, TextY ), Dress.inkHot.Fade( 0.93f ), Title );
 }
 
 static CRectangle TabBounds( const CRectangle& Rail, float Scale, int Index ) {
-    float Step = TabHeight * Scale + TabGap * Scale;
-    return CRectangle( Rail.Left, Rail.Top + Step * ( float )Index, Rail.Width, TabHeight * Scale );
+    ui::RectBounds B = ui::ComputeTabBounds( Rail.Left, Rail.Top, Rail.Width, TabHeight, TabGap, Scale, Index );
+    return CRectangle( B.left, B.top, B.width, B.height );
 }
 
 static CRectangle TabPlate( const CRectangle& Tab, bool Top, bool Bot, float Round ) {
-    if ( Top && !Bot )
-        return CRectangle( Tab.Left, Tab.Top, Tab.Width, Tab.Height + Round );
-    if ( Bot && !Top )
-        return CRectangle( Tab.Left, Tab.Top - Round, Tab.Width, Tab.Height + Round );
-    return Tab;
+    ui::RectBounds B = ui::ComputeTabPlate( { Tab.Left, Tab.Top, Tab.Width, Tab.Height }, Top, Bot, Round );
+    return CRectangle( B.left, B.top, B.width, B.height );
 }
 
 static void DrawTabPlate( const CRectangle& Tab, int Index, float Round, CColor Fill, unsigned int Effect, float Amount ) {
@@ -589,22 +554,12 @@ static void DrawTabPlate( const CRectangle& Tab, int Index, float Round, CColor 
 }
 
 static void DrawTabSwipe( const CRectangle& Rail, float Scale ) {
-    float Want = ( float )Menu.tab;
-    float Step = 20.0f * Context->DeltaTime;
-    if ( Step > 1.0f )
-        Step = 1.0f;
-    Menu.tabAt += ( Want - Menu.tabAt ) * Step;
-
-    float Stride = TabHeight * Scale + TabGap * Scale;
-    float Tall = TabHeight * Scale;
-    float Round = 12.0f * Scale;
-    CRectangle Stack( Rail.Left, Rail.Top, Rail.Width, Stride * ( float )TabCount );
-    CRectangle Fill( Rail.Left, Rail.Top + Stride * Menu.tabAt, Rail.Width, Tall );
-    bool Top = Fill.Top <= Stack.Top + 0.75f;
-    bool Bot = Fill.Bottom( ) >= Stack.Bottom( ) - 0.75f;
-    float Use = ( Top || Bot ) ? Round : 0.0f;
+    Menu.tabAt = ui::UpdateTabSlide( Menu.tabAt, Menu.tab, ( float )Context->DeltaTime );
+    ui::TabSwipeGeometry Geo = ui::ComputeTabSwipeGeometry( Rail.Left, Rail.Top, Rail.Width, TabHeight, TabGap, Scale, TabCount, Menu.tabAt );
+    CRectangle Stack( Geo.stack.left, Geo.stack.top, Geo.stack.width, Geo.stack.height );
+    CRectangle Fill( Geo.fill.left, Geo.fill.top, Geo.fill.width, Geo.fill.height );
     Canvas->PushClip( Stack );
-    DrawIce( Fill, TabPlate( Fill, Top, Bot, Round ), Use, 1.0f );
+    DrawIce( Fill, TabPlate( Fill, Geo.capTop, Geo.capBot, Geo.round ), Geo.round, 1.0f );
     Canvas->PopClip( );
 }
 
@@ -613,30 +568,28 @@ static void DrawTab( const CRectangle& Tab, const TabSpec& Spec, int Index, floa
     snprintf( HoverId, sizeof( HoverId ), "%s.hover", Spec.id );
 
     bool Selected = Menu.tab == Index;
-    float Dist = Menu.tabAt - ( float )Index;
-    if ( Dist < 0.0f )
-        Dist = -Dist;
-    float Active = Dist < 1.0f ? 1.0f - Dist : 0.0f;
+    float Active = ui::ComputeTabActiveWeight( Menu.tabAt, Index );
     float Hover = ur::motion::toward( HoverId, ( Hovered && !Selected ) ? 1.0f : 0.0f, 26.0f );
     float Round = 12.0f * Scale;
-    float Mark = 24.0f * Scale;
 
     DrawTabPlate( Tab, Index, Round, CColor( 255, 255, 255, 18 ), 0, Hover * ( 1.0f - Active ) );
 
+    CVector Size = Font->Measure( Spec.name );
+    ui::RectBounds GlyphB;
+    float LabelX = 0.0f, LabelY = 0.0f;
+    ui::ComputeTabItemGeometry( Tab.Left, Tab.Top, Tab.Width, Size.Horizontal, Scale, GlyphB, LabelX, LabelY );
+
     unsigned long long Icon = ur::glyphs::image( Spec.icon, ( int )( 26.0f * Scale + 0.5f ), ur::glyphs::Weight::Solid );
-    CRectangle Glyph( Tab.Left + ( Tab.Width - Mark ) * 0.5f, Tab.Top + 13.0f * Scale, Mark, Mark );
     CColor Ink = Mix( Mix( Style->Faint, Dress.ink, Hover ), Dress.inkHot, Active );
     if ( Icon )
-        Canvas->Image( Glyph, Icon, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), Ink, 0.0f );
+        Canvas->Image( CRectangle( GlyphB.left, GlyphB.top, GlyphB.width, GlyphB.height ), Icon, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), Ink, 0.0f );
 
-    CVector Size = Font->Measure( Spec.name );
-    float LabelTop = Glyph.Bottom( ) + 7.0f * Scale;
-    Canvas->Text( CVector( Tab.Left + ( Tab.Width - Size.Horizontal ) * 0.5f, LabelTop ), Ink, Spec.name );
+    Canvas->Text( CVector( LabelX, LabelY ), Ink, Spec.name );
 }
 
 static CRectangle CloseBounds( const CRectangle& Header, float Scale ) {
-    float Size = 32.0f * Scale;
-    return CRectangle( Header.Right( ) - Size - 8.0f * Scale, Header.Top + ( Header.Height - Size ) * 0.5f, Size, Size );
+    ui::RectBounds B = ui::ComputeCloseBounds( Header.Right( ), Header.Top, Header.Height, Scale, 32.0f, 8.0f );
+    return CRectangle( B.left, B.top, B.width, B.height );
 }
 
 static bool DrawClose( const CRectangle& Header, const CVector& Point, bool Click, float Scale, const char* Motion, bool Exit ) {
@@ -651,8 +604,9 @@ static bool DrawClose( const CRectangle& Header, const CVector& Point, bool Clic
     unsigned long long Icon = ur::glyphs::image( ur::icons::Icon::Xmark, ( int )( 14.0f * Scale + 0.5f ), ur::glyphs::Weight::Solid );
     CColor Ink = Mix( CColor( 220, 226, 236 ), CColor( 255, 246, 246 ), Hover );
     float Mark = 14.0f * Scale;
+    ui::RectBounds MarkB = ui::ComputeCenteredIcon( { Close.Left, Close.Top, Close.Width, Close.Height }, Mark );
     if ( Icon )
-        Canvas->Image( CRectangle( Close.Left + ( Close.Width - Mark ) * 0.5f, Close.Top + ( Close.Height - Mark ) * 0.5f, Mark, Mark ), Icon, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), Ink, 0.0f );
+        Canvas->Image( CRectangle( MarkB.left, MarkB.top, MarkB.width, MarkB.height ), Icon, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), Ink, 0.0f );
 
     if ( Over && Click && Exit )
         ur::app::quit( );
@@ -665,11 +619,7 @@ static bool Listening( ) {
 }
 
 static bool DrawSlider( float Left, float Top, float Wide, const char* Label, const char* Id, float& Value, float Lo, float Hi, const CVector& Point, bool Click, bool Press, float Scale ) {
-    if ( Value < Lo )
-        Value = Lo;
-    if ( Value > Hi )
-        Value = Hi;
-    Value = ( float )( int )( Value + 0.5f );
+    Value = ui::ClampSliderValue( Value, Lo, Hi );
 
     float Row = 26.0f * Scale;
     float TextW = 0.0f;
@@ -682,9 +632,7 @@ static bool DrawSlider( float Left, float Top, float Wide, const char* Label, co
     snprintf( Stamp, sizeof( Stamp ), "%d", ( int )Value );
     CVector Size = Font->Measure( Stamp );
     float Thumb = 14.0f * Scale;
-    float GrooveW = Wide - TextW - Size.Horizontal - Thumb - 18.0f * Scale;
-    if ( GrooveW < 48.0f * Scale )
-        GrooveW = 48.0f * Scale;
+    float GrooveW = ui::ComputeGrooveWidth( Wide, TextW, Size.Horizontal, Thumb, Scale );
     CRectangle Groove( Left + TextW, Top + 10.0f * Scale, GrooveW, 6.0f * Scale );
     CRectangle Hit( Left, Top, Wide, Row );
     bool Mine = Menu.slide && Menu.knob == Id;
@@ -699,20 +647,11 @@ static bool DrawSlider( float Left, float Top, float Wide, const char* Label, co
         Menu.knob = nullptr;
         Mine = false;
     }
-    if ( Mine && Groove.Width > 1.0f ) {
-        float Ratio = ( Point.Horizontal - Groove.Left ) / Groove.Width;
-        if ( Ratio < 0.0f )
-            Ratio = 0.0f;
-        if ( Ratio > 1.0f )
-            Ratio = 1.0f;
-        Value = ( float )( int )( Lo + Ratio * ( Hi - Lo ) + 0.5f );
+    if ( Mine ) {
+        Value = ui::ComputeSliderValueFromPoint( Point.Horizontal, Groove.Left, Groove.Width, Lo, Hi );
     }
 
-    float Portion = ( Value - Lo ) / ( Hi - Lo );
-    if ( Portion < 0.0f )
-        Portion = 0.0f;
-    if ( Portion > 1.0f )
-        Portion = 1.0f;
+    float Portion = ui::ComputeSliderRatio( Value, Lo, Hi );
     Canvas->Text( CVector( Groove.Right( ) + Thumb * 0.5f + 10.0f * Scale, Top + ( Row - Font->LineSpan ) * 0.5f ), Style->Text, Stamp );
     Canvas->Rectangle( Groove, Dress.groove, 2.5f * Scale );
     if ( Portion > 0.0f )
@@ -741,18 +680,19 @@ static bool DrawBind( float Left, float Top, const char* Label, const char* Moti
 }
 
 static bool DrawSwitch( const CRectangle& Row, const char* Label, const char* Id, bool& Value, const CVector& Point, bool Click, float Scale ) {
-    float TrackW = 44.0f * Scale;
-    float TrackH = 22.0f * Scale;
-    CRectangle Track( Row.Right( ) - TrackW, Row.Top + ( Row.Height - TrackH ) * 0.5f, TrackW, TrackH );
+    ui::RectBounds TrackB;
+    ui::ComputeSwitchTrack( Row.Right( ), Row.Top, Row.Height, Scale, TrackB );
+    CRectangle Track( TrackB.left, TrackB.top, TrackB.width, TrackB.height );
     bool Over = Row.Contains( Point ) && !Moving( ) && !Menu.slide;
     if ( Over && Click )
         Value = !Value;
 
     float On = ur::motion::toward( Id, Value ? 1.0f : 0.0f, 28.0f );
     Canvas->Text( CVector( Row.Left, Row.Top + ( Row.Height - Font->LineSpan ) * 0.5f ), Style->Text, Label );
-    Canvas->Rectangle( Track, Mix( Dress.trackOff, Mix( Dress.trackOn, Style->Accent, 0.4f ), On ), TrackH * 0.5f );
-    float Knob = 18.0f * Scale;
-    Canvas->Rectangle( CRectangle( Track.Left + 2.0f * Scale + ( TrackW - Knob - 4.0f * Scale ) * On, Track.Top + ( TrackH - Knob ) * 0.5f, Knob, Knob ), Dress.inkHot, Knob * 0.5f );
+    Canvas->Rectangle( Track, Mix( Dress.trackOff, Mix( Dress.trackOn, Style->Accent, 0.4f ), On ), TrackB.height * 0.5f );
+    ui::RectBounds KnobB;
+    ui::ComputeSwitchKnob( TrackB, Scale, On, KnobB );
+    Canvas->Rectangle( CRectangle( KnobB.left, KnobB.top, KnobB.width, KnobB.height ), Dress.inkHot, KnobB.width * 0.5f );
     return Over;
 }
 
@@ -764,8 +704,10 @@ static void TickAfk( ) {
 
 static bool DrawFold( float Left, float Top, float Wide, float Head, float BodyNeed, float Round, float Scale, const char* Name, const char* Motion, bool& OpenFlag, const CVector& Point, bool Click, CRectangle& Body, float& Open ) {
     Open = ur::motion::toward( Motion, OpenFlag ? 1.0f : 0.0f, 32.0f );
-    CRectangle Card( Left, Top, Wide, Head + BodyNeed * Open );
-    CRectangle Bar( Left, Top, Wide, Head );
+    ui::RectBounds CardB, BarB, BodyB;
+    ui::ComputeFoldCard( Left, Top, Wide, Head, BodyNeed, Open, CardB, BarB, BodyB );
+    CRectangle Card( CardB.left, CardB.top, CardB.width, CardB.height );
+    CRectangle Bar( BarB.left, BarB.top, BarB.width, BarB.height );
     bool OverBar = Bar.Contains( Point ) && !Moving( );
     if ( OverBar && Click )
         OpenFlag = !OpenFlag;
@@ -780,24 +722,22 @@ static bool DrawFold( float Left, float Top, float Wide, float Head, float BodyN
 
     ur::icons::Icon Arrow = Open > 0.5f ? ur::icons::Icon::ChevronUp : ur::icons::Icon::ChevronDown;
     unsigned long long Icon = ur::glyphs::image( Arrow, ( int )( 15.0f * Scale + 0.5f ), ur::glyphs::Weight::Solid );
-    float Mark = 15.0f * Scale;
-    if ( Icon )
-        Canvas->Image( CRectangle( Bar.Right( ) - Mark - 14.0f * Scale, Bar.Top + ( Head - Mark ) * 0.5f, Mark, Mark ), Icon, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), Mix( Style->Faint, Dress.inkHot, Open ), 0.0f );
+    if ( Icon ) {
+        ui::RectBounds ArrowB = ui::ComputeFoldArrow( BarB, Scale, 15.0f, 14.0f );
+        Canvas->Image( CRectangle( ArrowB.left, ArrowB.top, ArrowB.width, ArrowB.height ), Icon, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), Mix( Style->Faint, Dress.inkHot, Open ), 0.0f );
+    }
 
-    Body = CRectangle( Left, Bar.Bottom( ), Wide, BodyNeed );
+    Body = CRectangle( BodyB.left, BodyB.top, BodyB.width, BodyB.height );
     return OverBar;
 }
 
 static CRectangle DropListBox( float Scale ) {
     if ( !DropId || DropCount <= 0 )
         return CRectangle( );
-    float Item = 26.0f * Scale;
-    float Tall = Item * ( float )DropCount + 6.0f * Scale;
-    float Top = DropField.Bottom( ) + 4.0f * Scale;
-    float Limit = ( float )ur::app::height( ) - 8.0f * Scale;
-    if ( Top + Tall > Limit )
-        Top = DropField.Top - 4.0f * Scale - Tall;
-    return CRectangle( DropField.Left, Top, DropField.Width, Tall );
+    ui::RectBounds B;
+    if ( !ui::ComputeDropListBox( DropField.Left, DropField.Top, DropField.Bottom( ), DropField.Width, DropCount, ( float )ur::app::height( ), Scale, B ) )
+        return CRectangle( );
+    return CRectangle( B.left, B.top, B.width, B.height );
 }
 
 static bool DropHit( const CVector& Point, float Scale ) {
@@ -807,8 +747,7 @@ static bool DropHit( const CVector& Point, float Scale ) {
 }
 
 static bool DrawDrop( float Left, float Top, float Wide, const char* Label, const char* Id, const char* const* Options, int Count, int& Pick, const CVector& Point, bool Click, float Scale ) {
-    if ( Pick < 0 || Pick >= Count )
-        Pick = 0;
+    Pick = ui::ValidatePickIndex( Pick, Count );
     if ( Label ) {
         Canvas->Text( CVector( Left, Top ), Style->Faint, Label );
         Top += Font->LineSpan + 4.0f * Scale;
@@ -849,8 +788,7 @@ static const char* BitLabel( const char* const* Options, int Count, int Bits ) {
 }
 
 static bool DrawDropBits( float Left, float Top, float Wide, const char* Label, const char* Id, const char* const* Options, int Count, int& Bits, const CVector& Point, bool Click, float Scale ) {
-    if ( ( Bits & ( ( 1 << Count ) - 1 ) ) == 0 )
-        Bits = 1;
+    Bits = ui::ValidateBitmask( Bits, Count );
     if ( Label ) {
         Canvas->Text( CVector( Left, Top ), Style->Faint, Label );
         Top += Font->LineSpan + 4.0f * Scale;
@@ -900,7 +838,8 @@ static bool DrawDropList( const CVector& Point, bool Click, float Scale ) {
     Canvas->Rectangle( List, Dress.card, 6.0f * Scale );
     Canvas->Border( List, Dress.foldLine, 6.0f * Scale, 1.0f );
     for ( int Index = 0; Index < DropCount; Index++ ) {
-        CRectangle Row( List.Left + 3.0f * Scale, List.Top + 3.0f * Scale + Item * ( float )Index, List.Width - 6.0f * Scale, Item );
+        ui::RectBounds RowB = ui::ComputeDropItemBounds( List.Left, List.Top, List.Width, Item, Index, Scale );
+        CRectangle Row( RowB.left, RowB.top, RowB.width, RowB.height );
         bool Hit = Row.Contains( Point );
         bool On = DropMany ? ( ( *DropBits & ( 1 << Index ) ) != 0 ) : ( *DropPick == Index );
         if ( On || Hit )
@@ -908,16 +847,14 @@ static bool DrawDropList( const CVector& Point, bool Click, float Scale ) {
         Canvas->Text( CVector( Row.Left + 8.0f * Scale, Row.Top + ( Row.Height - Font->LineSpan ) * 0.5f ), On ? Dress.inkHot : Style->Text, DropOpts[ Index ] );
         if ( Hit && Click && !DropFresh ) {
             if ( DropMany ) {
-                *DropBits ^= ( 1 << Index );
-                if ( ( *DropBits & ( ( 1 << DropCount ) - 1 ) ) == 0 )
-                    *DropBits = 1 << Index;
+                *DropBits = ui::ToggleBitmaskOption( *DropBits, Index, DropCount );
             } else {
                 *DropPick = Index;
                 DropId = nullptr;
             }
         }
     }
-    if ( Click && !DropFresh && !Over && !DropField.Contains( Point ) )
+    if ( ui::ShouldDismissDropdown( Click, DropFresh, Over, DropField.Contains( Point ) ) )
         DropId = nullptr;
     DropFresh = false;
     return Over;
@@ -945,9 +882,8 @@ static bool DrawSwatches( float Left, float Top, float Wide, int Count, const CC
     int Columns = SwatchColumns( Wide, Count, Scale );
     bool Busy = false;
     for ( int Index = 0; Index < Count; Index++ ) {
-        int Col = Index % Columns;
-        int Row = Index / Columns;
-        CRectangle Chip( Left + ( Size + Gap ) * ( float )Col, Top + ( Size + Gap ) * ( float )Row, Size, Size );
+        ui::RectBounds ChipB = ui::ComputeGridItemBounds( Left, Top, Size, Size, Gap, Gap, Columns, Index );
+        CRectangle Chip( ChipB.left, ChipB.top, ChipB.width, ChipB.height );
         bool Over = Chip.Contains( Point ) && !Moving( ) && !Menu.slide;
         char Id[ 64 ];
         snprintf( Id, sizeof( Id ), "%s.%d", Prefix, Index );
@@ -962,7 +898,7 @@ static bool DrawSwatches( float Left, float Top, float Wide, int Count, const CC
 }
 
 static bool DrawAction( const CRectangle& Row, const char* Label, const CVector& Point, bool Click, float Scale, bool Danger ) {
-    bool Over = Row.Contains( Point ) && !Moving( ) && !Menu.slide;
+    bool Over = ui::IsWidgetHovered( Row.Contains( Point ), Moving( ), Menu.slide );
     float Tone = ur::motion::toward( Label, Over ? 1.0f : 0.0f, 26.0f );
     float Round = 6.0f * Scale;
     if ( Over )
@@ -974,46 +910,16 @@ static bool DrawAction( const CRectangle& Row, const char* Label, const CVector&
     CColor Ink = Danger
         ? Mix( CColor( 214, 220, 232 ), CColor( 232, 64, 72 ), Tone )
         : Mix( Style->Text, Dress.inkHot, Tone );
-    Canvas->Text( CVector( Row.Left + ( Row.Width - Size.Horizontal ) * 0.5f, Row.Top + ( Row.Height - Font->LineSpan ) * 0.5f ), Ink, Label );
+    float TextX = 0.0f, TextY = 0.0f;
+    ui::ComputeCenteredTextPos( Row.Left, Row.Top, Row.Width, Row.Height, Size.Horizontal, Font->LineSpan, TextX, TextY );
+    Canvas->Text( CVector( TextX, TextY ), Ink, Label );
     return Over && Click;
 }
 
-struct PageFit {
-    float inset;
-    float gap;
-    float head;
-    float general;
-    float target;
-    float silent;
-    float rageJump;
-    float rageNoclip;
-    float overlay;
-    float visual;
-    float theme;
-    float custom;
-    float misc;
-    float game;
-    float setOverlay;
-};
+using PageFit = ui::PageFit;
 
 static PageFit FitOf( float Scale ) {
-    PageFit Fit;
-    Fit.inset = 10.0f * Scale;
-    Fit.gap = 8.0f * Scale;
-    Fit.head = 36.0f * Scale;
-    Fit.general = 200.0f * Scale;
-    Fit.silent = 220.0f * Scale;
-    Fit.target = ( 276.0f + ( Aim.drawFov ? 32.0f : 0.0f ) ) * Scale;
-    Fit.rageJump = 128.0f * Scale;
-    Fit.rageNoclip = 58.0f * Scale;
-    Fit.overlay = 232.0f * Scale;
-    Fit.visual = 88.0f * Scale;
-    Fit.theme = 228.0f * Scale;
-    Fit.custom = 236.0f * Scale;
-    Fit.misc = ( 138.0f + ( Menu.limit ? 28.0f : 0.0f ) ) * Scale;
-    Fit.game = 160.0f * Scale;
-    Fit.setOverlay = 204.0f * Scale;
-    return Fit;
+    return ui::ComputePageFit( Scale, Aim.drawFov, Menu.limit );
 }
 
 #include "ui/tabs/tab_aimbot.hpp"
@@ -1047,35 +953,21 @@ static bool ReadClientVer( char* Out, int Cap ) {
 
 static void TickChannel( ) {
     unsigned Now = GetTickCount( );
-    if ( Now < LiveCh.nextScan )
-        return;
-    LiveCh.nextScan = Now + 2000;
-
     char Client[ 48 ] = { };
     bool HaveClient = ReadClientVer( Client, ( int )sizeof( Client ) );
     char Dump[ 48 ] = { };
     if ( offsets::Ready( ) )
         offsets::CopyVersion( Dump, ( int )sizeof( Dump ) );
 
-    if ( HaveClient )
-        lstrcpynA( LiveCh.client, Client, ( int )sizeof( LiveCh.client ) );
-    else
-        LiveCh.client[ 0 ] = 0;
-    lstrcpynA( LiveCh.dump, Dump, ( int )sizeof( LiveCh.dump ) );
-
-    LiveCh.mismatch = HaveClient && Dump[ 0 ] && !offsets::IsVersionMatch( Client, Dump );
-    if ( !LiveCh.mismatch ) {
-        LiveCh.open = false;
-        LiveCh.dismissed = false;
-        return;
-    }
-    if ( !LiveCh.dismissed )
-        LiveCh.open = true;
+    LiveCh.Update( Now, 2000, HaveClient, Client, offsets::Ready( ), Dump );
 }
 
 static void DrawChannelNotice( float Across, float Vertical, const CVector& Point, bool Click, float Scale ) {
     if ( !LiveCh.open || !Font )
         return;
+
+    size_t StepCount = 0;
+    const char* const* Steps = offsets::GetChannelNoticeSteps( StepCount );
 
     float Line = Font->LineSpan;
     float Pad = 18.0f * Scale;
@@ -1084,12 +976,10 @@ static void DrawChannelNotice( float Across, float Vertical, const CVector& Poin
     float AfterSteps = 18.0f * Scale;
     float StepGap = 6.0f * Scale;
     float Wide = 448.0f * Scale;
-    float Tall = HeadH + 14.0f * Scale + Line + 6.0f * Scale + Line + 12.0f * Scale + Line + 10.0f * Scale;
-    for ( int Index = 0; Index < 7; Index++ )
-        Tall += Line + StepGap;
-    Tall += AfterSteps + ActH + Pad;
+    float Tall = ui::ComputeModalTall( HeadH, Line, StepGap, ( int )StepCount, AfterSteps, ActH, Pad, Scale );
     CRectangle Shade( 0.0f, 0.0f, Across, Vertical );
-    CRectangle Card( ( Across - Wide ) * 0.5f, ( Vertical - Tall ) * 0.5f, Wide, Tall );
+    ui::RectBounds CardB = ui::ComputeCenteredBounds( Across, Vertical, Wide, Tall );
+    CRectangle Card( CardB.left, CardB.top, CardB.width, CardB.height );
     float Keep = Canvas->Opacity;
     Canvas->Opacity = 1.0f;
     Canvas->Rectangle( Shade, CColor( 6, 8, 12, 186 ), 0.0f );
@@ -1106,40 +996,30 @@ static void DrawChannelNotice( float Across, float Vertical, const CVector& Poin
 
     float Y = Head.Bottom( ) + 14.0f * Scale;
     char LineText[ 96 ] = { };
-    snprintf( LineText, sizeof( LineText ), "Your client  %s", LiveCh.client[ 0 ] ? LiveCh.client : "unknown" );
+    offsets::FormatChannelNoticeLine( LineText, sizeof( LineText ), "Your client", LiveCh.client );
     Canvas->Text( CVector( Card.Left + Pad, Y ), Style->Text, LineText );
     Y += Line + 6.0f * Scale;
-    snprintf( LineText, sizeof( LineText ), "LIVE dump    %s", LiveCh.dump[ 0 ] ? LiveCh.dump : "unknown" );
+    offsets::FormatChannelNoticeLine( LineText, sizeof( LineText ), "LIVE dump", LiveCh.dump );
     Canvas->Text( CVector( Card.Left + Pad, Y ), Style->Faint, LineText );
     Y += Line + 12.0f * Scale;
     Canvas->Text( CVector( Card.Left + Pad, Y ), Style->Faint, "Offsets are dumped for the LIVE channel only." );
     Y += Line + 10.0f * Scale;
 
-    static const char* Steps[ ] = {
-        "1. Download Fishstrap from fishstrap.app",
-        "2. Install it, then open Fishstrap from search",
-        "3. Click Configure Settings",
-        "4. Open the Deployment tab",
-        "5. Set Channel to production and press Enter",
-        "6. Set Automatic channel change to Never change",
-        "7. Press Save and Launch"
-    };
-    for ( const char* Step : Steps ) {
-        Canvas->Text( CVector( Card.Left + Pad, Y ), Style->Text, Step );
+    for ( size_t Index = 0; Index < StepCount; Index++ ) {
+        Canvas->Text( CVector( Card.Left + Pad, Y ), Style->Text, Steps[ Index ] );
         Y += Line + StepGap;
     }
 
     Y += AfterSteps;
     float Gap = 8.0f * Scale;
-    float Half = ( Card.Width - Pad * 2.0f - Gap ) * 0.5f;
-    CRectangle Get( Card.Left + Pad, Y, Half, ActH );
-    CRectangle Ok( Get.Right( ) + Gap, Y, Half, ActH );
+    ui::RectBounds GetB, OkB;
+    ui::ComputeSplitPair( Card.Left + Pad, Y, Card.Width - Pad * 2.0f, Gap, ActH, GetB, OkB );
+    CRectangle Get( GetB.left, GetB.top, GetB.width, GetB.height );
+    CRectangle Ok( OkB.left, OkB.top, OkB.width, OkB.height );
     if ( DrawAction( Get, "Get Fishstrap", Point, Click, Scale, false ) )
         ShellExecuteA( nullptr, "open", "https://www.fishstrap.app/Fishstrap.exe", nullptr, nullptr, SW_SHOWNORMAL );
-    if ( DrawAction( Ok, "Got it", Point, Click, Scale, false ) ) {
-        LiveCh.open = false;
-        LiveCh.dismissed = true;
-    }
+    if ( DrawAction( Ok, "Got it", Point, Click, Scale, false ) )
+        LiveCh.Dismiss( );
 
     ur::overlay::Options& Overlay = ur::app::overlay_options( );
     Overlay.click_through = false;
@@ -1152,9 +1032,8 @@ static void DrawPage( const CRectangle& Content, const CVector& Point, bool Clic
     if ( Menu.pageIn > 1.0f )
         Menu.pageIn = 1.0f;
 
-    float Remain = 1.0f - Menu.pageIn;
-    float Ease = 1.0f - Remain * Remain * Remain * Remain * Remain;
-    float Slide = ( 1.0f - Ease ) * 36.0f * Scale * Menu.pageDir;
+    float Ease = ui::EaseOutQuint( Menu.pageIn );
+    float Slide = ui::ComputePageSlide( Menu.pageIn, Scale, Menu.pageDir, 36.0f );
     bool Live = Menu.pageIn > 0.82f;
 
     CRectangle Shifted = Content;
@@ -1222,17 +1101,14 @@ static void ExploreChrome( const CRectangle& Bounds, float Scale, CRectangle& He
 }
 
 static void DrawCaret( CVector At, bool Down, float Scale, CColor Tint ) {
-    float Span = 3.6f * Scale;
-    CVector Tips[ 3 ];
-    if ( Down ) {
-        Tips[ 0 ] = CVector( At.Horizontal - Span, At.Vertical - Span * 0.45f );
-        Tips[ 1 ] = CVector( At.Horizontal + Span, At.Vertical - Span * 0.45f );
-        Tips[ 2 ] = CVector( At.Horizontal, At.Vertical + Span * 0.75f );
-    } else {
-        Tips[ 0 ] = CVector( At.Horizontal - Span * 0.35f, At.Vertical - Span );
-        Tips[ 1 ] = CVector( At.Horizontal + Span * 0.8f, At.Vertical );
-        Tips[ 2 ] = CVector( At.Horizontal - Span * 0.35f, At.Vertical + Span );
-    }
+    float TipsX[ 3 ] = { };
+    float TipsY[ 3 ] = { };
+    ui::ComputeCaretTips( At.Horizontal, At.Vertical, Down, Scale, TipsX, TipsY );
+    CVector Tips[ 3 ] = {
+        CVector( TipsX[ 0 ], TipsY[ 0 ] ),
+        CVector( TipsX[ 1 ], TipsY[ 1 ] ),
+        CVector( TipsX[ 2 ], TipsY[ 2 ] )
+    };
     Canvas->Polygon( Tips, 3, Tint );
 }
 
@@ -1320,7 +1196,6 @@ static int WalkLive( uintptr_t Parent, int Depth, float Scale, const CRectangle&
     }
     int Shown = 0;
     float RowH = 24.0f * Scale;
-    float Indent = 12.0f * Scale;
     float Icon = 15.0f * Scale;
     for ( int Index = 0; Index < Count; Index++ ) {
         uintptr_t Addr = List[ Index ];
@@ -1330,13 +1205,14 @@ static int WalkLive( uintptr_t Parent, int Depth, float Scale, const CRectangle&
         if ( !Item )
             continue;
         Shown += 1;
-        float Top = Pane.Top + ( float )Row * RowH - Tree.scroll;
-        CRectangle Line( Pane.Left, Top, Pane.Width, RowH );
-        bool See = Top + RowH > Pane.Top && Top < Pane.Bottom( );
+        ui::RectBounds LineB = ui::ComputeTreeRowBounds( Pane.Left, Pane.Top, Pane.Width, Row, RowH, Tree.scroll );
+        CRectangle Line( LineB.left, LineB.top, LineB.width, LineB.height );
+        bool See = ui::IsRowVisible( LineB.top, RowH, Pane.Top, Pane.Bottom( ) );
         bool Kids = browse::HasKids( Addr );
         if ( Paint && See ) {
             bool Over = Line.Contains( Point ) && Pane.Contains( Point ) && !Locked && !Tree.type;
-            CRectangle Arm( Pane.Left + 4.0f * Scale + Indent * ( float )Depth, Line.Top, 14.0f * Scale, RowH );
+            ui::TreeItemElements E = ui::ComputeTreeItemElements( Pane.Left, Pane.Width, Line.Top, RowH, Depth, Scale, Icon, Font->LineSpan );
+            CRectangle Arm( E.arm.left, E.arm.top, E.arm.width, E.arm.height );
             if ( Over && Click ) {
                 if ( Kids && Arm.Contains( Point ) )
                     browse::Toggle( Addr );
@@ -1347,22 +1223,19 @@ static int WalkLive( uintptr_t Parent, int Depth, float Scale, const CRectangle&
                 }
             }
             if ( Tree.pick == Addr )
-                Canvas->Rectangle( CRectangle( Pane.Left + 2.0f * Scale, Line.Top + 1.0f * Scale, Pane.Width - 4.0f * Scale, RowH - 2.0f * Scale ), Dress.trackOn, 4.0f * Scale );
+                Canvas->Rectangle( CRectangle( E.highlight.left, E.highlight.top, E.highlight.width, E.highlight.height ), Dress.trackOn, 4.0f * Scale );
             else if ( Over )
-                Canvas->Rectangle( CRectangle( Pane.Left + 2.0f * Scale, Line.Top + 1.0f * Scale, Pane.Width - 4.0f * Scale, RowH - 2.0f * Scale ), CColor( 255, 255, 255, 14 ), 4.0f * Scale );
+                Canvas->Rectangle( CRectangle( E.highlight.left, E.highlight.top, E.highlight.width, E.highlight.height ), CColor( 255, 255, 255, 14 ), 4.0f * Scale );
             if ( Kids )
-                DrawCaret( CVector( Arm.Left + Arm.Width * 0.5f, Line.Top + RowH * 0.5f ), Item->open, Scale, Mix( CColor( 168, 178, 194 ), CColor( 230, 236, 246 ), Tree.pick == Addr ? 1.0f : 0.0f ) );
+                DrawCaret( CVector( E.caretCenterX, E.caretCenterY ), Item->open, Scale, Mix( CColor( 168, 178, 194 ), CColor( 230, 236, 246 ), Tree.pick == Addr ? 1.0f : 0.0f ) );
             unsigned long long Glyph = TreeGlyph( browse::Glyph( Addr ) );
-            CRectangle Mark( Arm.Right( ) + 2.0f * Scale, Line.Top + ( RowH - Icon ) * 0.5f, Icon, Icon );
+            CRectangle Mark( E.mark.left, E.mark.top, E.mark.width, E.mark.height );
             if ( Glyph )
                 Canvas->Image( Mark, Glyph, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), CColor( 255, 255, 255 ), 0.0f );
             char Caption[ 96 ];
-            if ( Item->extra > 0 && Item->open )
-                snprintf( Caption, sizeof( Caption ), "%s [%s] +%d", Item->name, Item->klass, Item->extra );
-            else
-                snprintf( Caption, sizeof( Caption ), "%s [%s]", Item->name, Item->klass );
+            ui::FormatTreeCaption( Caption, sizeof( Caption ), Item->name, Item->klass, Item->extra, Item->open );
             CColor Ink = Tree.pick == Addr ? CColor( 240, 246, 255 ) : Style->Text;
-            Canvas->Text( CVector( Mark.Right( ) + 6.0f * Scale, Line.Top + ( RowH - Font->LineSpan ) * 0.5f ), Ink, Caption );
+            Canvas->Text( CVector( E.textX, E.textY ), Ink, Caption );
             Busy = Busy || Over;
         }
         Row += 1;
@@ -1384,15 +1257,10 @@ static bool DrawExplorer( float Across, float Vertical, const CVector& Point, bo
     CRectangle Body;
     ExploreChrome( Bounds, Scale, Header, Body );
 
-    float SearchH = 28.0f * Scale;
-    CRectangle Search( Body.Left, Body.Top, Body.Width, SearchH );
-    float Gap = 8.0f * Scale;
-    float TreeW = Body.Width * 0.56f;
-    float SideW = Body.Width - TreeW - Gap;
-    float WorkTop = Search.Bottom( ) + 6.0f * Scale;
-    float WorkH = Body.Bottom( ) - WorkTop;
-    CRectangle Pane( Body.Left, WorkTop, TreeW, WorkH );
-    CRectangle Side( Body.Left + TreeW + Gap, WorkTop, SideW, WorkH );
+    ui::ExplorerLayout L = ui::ComputeExplorerLayout( Body.Left, Body.Top, Body.Width, Body.Height, Scale );
+    CRectangle Search( L.search.left, L.search.top, L.search.width, L.search.height );
+    CRectangle Pane( L.treePane.left, L.treePane.top, L.treePane.width, L.treePane.height );
+    CRectangle Side( L.sidePane.left, L.sidePane.top, L.sidePane.width, L.sidePane.height );
 
     bool OverTree = Pane.Contains( Point );
     bool OverSide = Side.Contains( Point );
@@ -1404,18 +1272,10 @@ static bool DrawExplorer( float Across, float Vertical, const CVector& Point, bo
     if ( Root )
         Count = WalkLive( 0, 0, Scale, Pane, Point, false, true, Count, false, Busy );
     float RowH = 24.0f * Scale;
-    float Need = ( float )Count * RowH;
-    float Most = Need - Pane.Height;
-    if ( Most < 0.0f )
-        Most = 0.0f;
-    if ( OverTree && !Locked && !Tree.type && Input->WheelDelta != 0.0f ) {
-        Tree.scroll -= Input->WheelDelta * 42.0f * Scale;
+    float TreeDelta = ( OverTree && !Locked && !Tree.type ) ? Input->WheelDelta : 0.0f;
+    if ( TreeDelta != 0.0f )
         Input->WheelDelta = 0.0f;
-    }
-    if ( Tree.scroll > Most )
-        Tree.scroll = Most;
-    if ( Tree.scroll < 0.0f )
-        Tree.scroll = 0.0f;
+    Tree.scroll = ui::ComputeClampedScroll( Tree.scroll, TreeDelta, 42.0f * Scale, Count, RowH, Pane.Height );
 
     Canvas->Shadow( Bounds, CColor( 6, 10, 18, 130 ), Round, 24.0f * Scale );
     Canvas->Rectangle( Bounds, Style->Surface, Round );
@@ -1432,10 +1292,10 @@ static bool DrawExplorer( float Across, float Vertical, const CVector& Point, bo
         DrawIce( Search, Search, 8.0f * Scale, 0.45f );
     Canvas->Border( Search, Mix( Dress.foldLine, Style->AccentSoft, Tree.type ? 1.0f : 0.0f ), 8.0f * Scale, 1.0f );
     const char* Shown = Tree.find[ 0 ] ? Tree.find : ( Tree.type ? "" : "Search name or class" );
-    Canvas->Text( CVector( Search.Left + 10.0f * Scale, Search.Top + ( SearchH - Font->LineSpan ) * 0.5f ), Tree.find[ 0 ] ? Style->Text : Style->Faint, Shown );
+    Canvas->Text( CVector( Search.Left + 10.0f * Scale, Search.Top + ( Search.Height - Font->LineSpan ) * 0.5f ), Tree.find[ 0 ] ? Style->Text : Style->Faint, Shown );
     if ( Tree.type && ( ( int )( Context->Elapsed * 2.0 ) & 1 ) ) {
         CVector Caret = Font->Measure( Tree.find );
-        Canvas->Rectangle( CRectangle( Search.Left + 10.0f * Scale + Caret.Horizontal, Search.Top + 6.0f * Scale, 1.0f * Scale, SearchH - 12.0f * Scale ), Style->AccentSoft, 0.0f );
+        Canvas->Rectangle( CRectangle( Search.Left + 10.0f * Scale + Caret.Horizontal, Search.Top + 6.0f * Scale, 1.0f * Scale, Search.Height - 12.0f * Scale ), Style->AccentSoft, 0.0f );
     }
 
     Canvas->Rectangle( Pane, Style->Elevated, 10.0f * Scale );
@@ -1500,24 +1360,16 @@ static bool DrawExplorer( float Across, float Vertical, const CVector& Point, bo
         PropPane.Height = 20.0f * Scale;
     float PropH = 18.0f * Scale;
     int PropN = browse::Core( ).propN;
-    if ( OverSide && !OverTree && Input->WheelDelta != 0.0f ) {
-        Tree.propScroll -= Input->WheelDelta * 28.0f * Scale;
+    float PropDelta = ( OverSide && !OverTree ) ? Input->WheelDelta : 0.0f;
+    if ( PropDelta != 0.0f )
         Input->WheelDelta = 0.0f;
-    }
-    float PropNeed = ( float )PropN * PropH;
-    float PropMost = PropNeed - PropPane.Height;
-    if ( PropMost < 0.0f )
-        PropMost = 0.0f;
-    if ( Tree.propScroll > PropMost )
-        Tree.propScroll = PropMost;
-    if ( Tree.propScroll < 0.0f )
-        Tree.propScroll = 0.0f;
+    Tree.propScroll = ui::ComputeClampedScroll( Tree.propScroll, PropDelta, 28.0f * Scale, PropN, PropH, PropPane.Height );
     Canvas->PushClip( PropPane );
     for ( int Index = 0; Index < PropN; Index++ ) {
         const browse::Prop& Item = browse::Core( ).props[ Index ];
         float Top = PropPane.Top + ( float )Index * PropH - Tree.propScroll;
         CRectangle Line( PropPane.Left, Top, PropPane.Width, PropH );
-        if ( Top + PropH < PropPane.Top || Top > PropPane.Bottom( ) )
+        if ( !ui::IsRowVisible( Top, PropH, PropPane.Top, PropPane.Bottom( ) ) )
             continue;
         Canvas->Text( CVector( Line.Left, Line.Top + 1.0f * Scale ), Style->Faint, Item.label );
         CVector Size = Font->Measure( Item.text );
@@ -1562,7 +1414,7 @@ static CRectangle PlaceMark( float Across, float Vertical, float Scale, CFont* F
     float Tall = 0.0f;
     ui::ComputeBadgeSize( Size.Horizontal, Size.Vertical, Scale, Wide, Tall );
     if ( !Badge.ready ) {
-        Badge.origin = CVector( 14.0f * Scale, Vertical - Tall - 14.0f * Scale );
+        ui::ComputeDefaultBadgeOrigin( Vertical, Tall, Scale, 14.0f, Badge.origin.Horizontal, Badge.origin.Vertical );
         Badge.ready = true;
     }
     ClampBox( Badge.origin, Across, Vertical, Wide, Tall );
@@ -1620,11 +1472,7 @@ static bool AimDot( const world::Vec3& World, CVector& Out ) {
     if ( !world::ToView( World, View ) )
         return false;
     const world::Snap& Live = world::View( );
-    float Wide = ( float )Live.viewW;
-    float Tall = ( float )Live.viewH;
-    if ( Wide < 8.0f || Tall < 8.0f )
-        return false;
-    if ( View.x < -48.0f || View.y < -48.0f || View.x > Wide + 48.0f || View.y > Tall + 48.0f )
+    if ( !aim::IsPointInViewBounds( View.x, View.y, ( float )Live.viewW, ( float )Live.viewH, 48.0f ) )
         return false;
     world::Dot Hit;
     if ( !world::ToScreen( World, Hit ) )
@@ -1681,10 +1529,7 @@ static void TickAim( float Scale ) {
     QueryPerformanceCounter( &Now );
     float Dt = ( float )( Now.QuadPart - Last.QuadPart ) / ( float )Freq.QuadPart;
     Last = Now;
-    if ( Dt < 0.00025f )
-        Dt = 0.00025f;
-    if ( Dt > 0.05f )
-        Dt = 0.05f;
+    Dt = aim::ClampAimDt( Dt );
 
     bool ListenBusy = Mute.listen || Aim.listen || Menu.listen || Menu.slide;
     bool MuteHeld = Held( Mute.key );
@@ -1713,17 +1558,11 @@ static void TickAim( float Scale ) {
         const world::Actor* Best = nullptr;
         float Limit = AimRadius( Scale, Fov );
         float BestScore = 1.0e9f;
-        float Far = 1.0f;
-        for ( int Index = 0; Index < Snap.count; Index++ ) {
-            if ( Snap.list[ Index ].dist > Far )
-                Far = Snap.list[ Index ].dist;
-        }
+        float Far = aim::ComputeFarDistance( Snap.list, Snap.count );
         CVector Chosen;
         for ( int Index = 0; Index < Snap.count; Index++ ) {
             const world::Actor& Item = Snap.list[ Index ];
-            if ( Team && Item.mate )
-                continue;
-            if ( NeedVis && !Item.vis )
+            if ( !aim::IsTargetValid( Item.mate, Item.vis, Team, NeedVis ) )
                 continue;
             CVector At;
             float Screen = 1.0e9f;
@@ -1732,9 +1571,7 @@ static void TickAim( float Scale ) {
                 CVector Point;
                 if ( !EspDot( World, Point ) )
                     return;
-                float Dx = Point.Horizontal - Mid.Horizontal;
-                float Dy = Point.Vertical - Mid.Vertical;
-                float Dist = sqrtf( Dx * Dx + Dy * Dy );
+                float Dist = aim::ComputeScreenDistance( Point.Horizontal, Point.Vertical, Mid.Horizontal, Mid.Vertical );
                 if ( !OnScreen || Dist < Screen ) {
                     OnScreen = true;
                     Screen = Dist;
@@ -1745,9 +1582,7 @@ static void TickAim( float Scale ) {
             if ( !OnScreen )
                 continue;
             float Score = aim::ScoreTarget( Screen, Limit, Item.dist, Far, Sort );
-            if ( Score >= 1.0e9f )
-                continue;
-            if ( Score < BestScore ) {
+            if ( aim::IsBetterTarget( Score, BestScore ) ) {
                 BestScore = Score;
                 Best = &Item;
                 Chosen = At;
@@ -1804,9 +1639,7 @@ static void TickAim( float Scale ) {
             const world::Actor& Item = Snap.list[ Index ];
             if ( Item.player != Hold )
                 continue;
-            if ( Aim.team && Item.mate )
-                break;
-            if ( Aim.vis && !Item.vis )
+            if ( !aim::IsTargetValid( Item.mate, Item.vis, Aim.team, Aim.vis ) )
                 break;
             if ( AimDot( AimPoint( Item ), BestAt ) )
                 Best = &Item;
@@ -1822,64 +1655,13 @@ static void TickAim( float Scale ) {
     Hold = Best->player;
     float Dx = BestAt.Horizontal - Mid.Horizontal;
     float Dy = BestAt.Vertical - Mid.Vertical;
-    if ( Dx * Dx + Dy * Dy < 4.0f )
+    aim::MouseStep Mouse = aim::ComputeSmoothMouseStep( Dx, Dy, Aim.smooth, Dt, RestX, RestY );
+    if ( !Mouse.moved )
         return;
-    float T = Aim.smooth / 100.0f;
-    if ( T < 0.0f )
-        T = 0.0f;
-    if ( T > 1.0f )
-        T = 1.0f;
-    float Tau = 0.035f;
-    float CapPx = 14000.0f;
-    if ( T <= 0.05f ) {
-        Tau = 0.012f + ( T / 0.05f ) * 0.028f;
-        CapPx = 18000.0f - ( T / 0.05f ) * 4000.0f;
-    } else if ( T <= 0.50f ) {
-        float U = ( T - 0.05f ) / 0.45f;
-        Tau = 0.040f + U * 0.36f;
-        CapPx = 14000.0f - U * 12600.0f;
-    } else {
-        float U = ( T - 0.50f ) / 0.50f;
-        Tau = 0.40f + U * 2.00f;
-        CapPx = 1400.0f - U * 1320.0f;
-    }
-    if ( Tau < 0.008f )
-        Tau = 0.008f;
-    float Alpha = 1.0f - expf( -Dt / Tau );
-    if ( T < 0.005f ) {
-        Alpha = 1.0f;
-        float Cap = 22.0f;
-        float Step = sqrtf( Dx * Dx + Dy * Dy );
-        if ( Step > Cap ) {
-            Dx *= Cap / Step;
-            Dy *= Cap / Step;
-        }
-    } else {
-        float Step = sqrtf( Dx * Dx + Dy * Dy ) * Alpha;
-        float MaxStep = CapPx * Dt;
-        if ( MaxStep < 0.35f )
-            MaxStep = 0.35f;
-        if ( Step > MaxStep && Step > 0.001f ) {
-            float ScaleStep = MaxStep / Step;
-            Alpha *= ScaleStep;
-        }
-    }
-    if ( Alpha < 0.0f )
-        Alpha = 0.0f;
-    if ( Alpha > 1.0f )
-        Alpha = 1.0f;
-    RestX += Dx * Alpha;
-    RestY += Dy * Alpha;
-    int MoveX = ( int )( RestX >= 0.0f ? RestX + 0.5f : RestX - 0.5f );
-    int MoveY = ( int )( RestY >= 0.0f ? RestY + 0.5f : RestY - 0.5f );
-    if ( MoveX == 0 && MoveY == 0 )
-        return;
-    RestX -= ( float )MoveX;
-    RestY -= ( float )MoveY;
     INPUT Step{ };
     Step.type = INPUT_MOUSE;
-    Step.mi.dx = MoveX;
-    Step.mi.dy = MoveY;
+    Step.mi.dx = Mouse.moveX;
+    Step.mi.dy = Mouse.moveY;
     Step.mi.dwFlags = MOUSEEVENTF_MOVE;
     SendInput( 1, &Step, sizeof( Step ) );
 }
@@ -1894,13 +1676,14 @@ static bool EspDot( const world::Vec3& World, CVector& Out ) {
 
 static void DrawFovRings( float Scale ) {
     CVector Mid = AimMid( );
-    float Pulse = 0.7f + 0.3f * ( 0.5f + 0.5f * sinf( ( float )Context->Elapsed * 1.8f ) );
+    float Pulse = aim::ComputeFovPulse( Context->Elapsed );
     float Keep = Canvas->Opacity;
     if ( Aim.on && Aim.drawFov ) {
         float Ring = ur::motion::toward( "aim.fov.ring", 1.0f, 18.0f );
         float Radius = AimRadius( Scale, Aim.fov );
         Canvas->Opacity = Keep * Ring * Pulse;
-        Canvas->Border( CRectangle( Mid.Horizontal - Radius, Mid.Vertical - Radius, Radius * 2.0f, Radius * 2.0f ), Mix( Style->Accent, Style->AccentSoft, 0.3f ), Radius, 1.6f * Scale );
+        ui::RectBounds RingB = ui::ComputeCircleBounds( Mid.Horizontal, Mid.Vertical, Radius );
+        Canvas->Border( CRectangle( RingB.left, RingB.top, RingB.width, RingB.height ), Mix( Style->Accent, Style->AccentSoft, 0.3f ), Radius, 1.6f * Scale );
     }
     Canvas->Opacity = Keep;
 }
@@ -1926,10 +1709,12 @@ static void DrawWeather( float Across, float Vertical, float Scale ) {
 
     for ( int Index = 0; Index < Storm.used; Index++ ) {
         const weather::Drop& Item = Storm.list[ Index ];
-        if ( weather::mode( ) == weather::Snow )
+        if ( weather::mode( ) == weather::Snow ) {
             Canvas->Circle( CVector( Item.x, Item.y ), Item.size * Scale, Flake.Fade( 0.72f ) );
-        else
-            Canvas->Line( CVector( Item.x, Item.y ), CVector( Item.x + Item.vx * 0.018f, Item.y + Item.size ), Streak.Fade( 0.45f ), 1.1f * Scale );
+        } else {
+            weather::Point2D End = weather::ComputeRainStreakEnd( Item.x, Item.y, Item.vx, Item.size );
+            Canvas->Line( CVector( Item.x, Item.y ), CVector( End.x, End.y ), Streak.Fade( 0.45f ), 1.1f * Scale );
+        }
     }
     Canvas->Opacity = Keep;
 }
@@ -1945,13 +1730,12 @@ static void DrawEspWorld( float Scale ) {
     Canvas->Opacity = 1.0f;
     CColor Edge = CColor( 8, 10, 14, 210 );
     float Thick = 1.5f * Scale;
-    CVector Foot( ( float )ur::app::width( ) * 0.5f, ( float )ur::app::height( ) - 4.0f * Scale );
+    CVector Foot;
+    esp::ComputeSnaplineOrigin( ( float )ur::app::width( ), ( float )ur::app::height( ), Scale, Foot.Horizontal, Foot.Vertical );
 
     for ( int Index = 0; Index < Snap.count; Index++ ) {
         const world::Actor& Item = Snap.list[ Index ];
-        if ( Item.dist > Esp.range )
-            continue;
-        if ( Esp.team && Item.mate )
+        if ( !esp::ShouldRenderActor( Item.dist, Esp.range, Esp.team, Item.mate ) )
             continue;
         CVector Dots[ world::BoneMax ];
         bool On[ world::BoneMax ] = { };
@@ -1963,10 +1747,7 @@ static void DrawEspWorld( float Scale ) {
             BBox.Push( At.Horizontal, At.Vertical );
         };
         auto PushOff = [ & ]( world::Vec3 Point, float Side, float Lift ) {
-            Point.x += Snap.right.x * Side;
-            Point.y += Lift;
-            Point.z += Snap.right.z * Side;
-            Push( Point );
+            Push( esp::ComputeOffsetPoint( Point, Snap.right, Side, Lift ) );
         };
         Push( Item.head );
         Push( Item.low );
@@ -1990,8 +1771,11 @@ static void DrawEspWorld( float Scale ) {
 
         CRectangle Box( BBox.minX, BBox.minY, BBox.Width( ), BBox.Height( ) );
 
-        if ( Esp.snap )
-            Canvas->Line( Foot, CVector( Box.Left + Box.Width * 0.5f, Box.Bottom( ) ), FeatColor( FeatSnap, Item.vis ).Fade( 0.55f ), Thick );
+        if ( Esp.snap ) {
+            float SnapX = 0.0f, SnapY = 0.0f;
+            esp::ComputeSnaplineTarget( Box.Left, Box.Bottom( ), Box.Width, SnapX, SnapY );
+            Canvas->Line( Foot, CVector( SnapX, SnapY ), FeatColor( FeatSnap, Item.vis ).Fade( 0.55f ), Thick );
+        }
 
         if ( Esp.skeleton ) {
             CColor Joint = FeatColor( FeatSkel, Item.vis );
@@ -2011,24 +1795,27 @@ static void DrawEspWorld( float Scale ) {
 
         if ( Esp.health ) {
             float Ratio = esp::ComputeHealthRatio( Item.health, Item.maxHealth );
-            float BarW = 3.0f * Scale;
-            CRectangle Rail( Box.Left - 6.0f * Scale, Box.Top, BarW, Box.Height );
-            Canvas->Rectangle( Rail, CColor( 10, 12, 16, 190 ), 0.0f );
-            CRectangle Fill( Rail.Left, Rail.Bottom( ) - Rail.Height * Ratio, Rail.Width, Rail.Height * Ratio );
-            Canvas->Rectangle( Fill, FeatColor( FeatHealth, Item.vis ), 0.0f );
+            float RailLeft = 0.0f, RailTop = 0.0f, RailW = 0.0f, RailH = 0.0f;
+            float FillTop = 0.0f, FillH = 0.0f;
+            esp::ComputeHealthBar( Box.Left, Box.Top, Box.Height, Scale, Ratio,
+                                  RailLeft, RailTop, RailW, RailH, FillTop, FillH );
+            Canvas->Rectangle( CRectangle( RailLeft, RailTop, RailW, RailH ), CColor( 10, 12, 16, 190 ), 0.0f );
+            Canvas->Rectangle( CRectangle( RailLeft, FillTop, RailW, FillH ), FeatColor( FeatHealth, Item.vis ), 0.0f );
         }
 
         if ( Font && Esp.name ) {
             CVector Size = Font->Measure( Item.name );
-            CVector At( Box.Left + ( Box.Width - Size.Horizontal ) * 0.5f, Box.Top - Size.Vertical - 3.0f * Scale );
-            Canvas->Outlined( At, FeatColor( FeatName, Item.vis ), Edge, 1.0f, Item.name );
+            float AtX = 0.0f, AtY = 0.0f;
+            esp::ComputeTopCenteredText( Box.Left, Box.Top, Box.Width, Size.Horizontal, Size.Vertical, Scale, AtX, AtY );
+            Canvas->Outlined( CVector( AtX, AtY ), FeatColor( FeatName, Item.vis ), Edge, 1.0f, Item.name );
         }
         if ( Font && Esp.dist ) {
             char Line[ 24 ];
             esp::FormatDistance( Item.dist, Line, sizeof( Line ) );
             CVector Size = Font->Measure( Line );
-            CVector At( Box.Left + ( Box.Width - Size.Horizontal ) * 0.5f, Box.Bottom( ) + 3.0f * Scale );
-            Canvas->Outlined( At, FeatColor( FeatDist, Item.vis ), Edge, 1.0f, Line );
+            float AtX = 0.0f, AtY = 0.0f;
+            esp::ComputeBottomCenteredText( Box.Left, Box.Bottom( ), Box.Width, Size.Horizontal, Scale, AtX, AtY );
+            Canvas->Outlined( CVector( AtX, AtY ), FeatColor( FeatDist, Item.vis ), Edge, 1.0f, Line );
         }
     }
     Canvas->Opacity = Keep;
@@ -2042,29 +1829,12 @@ static void DrawExploreMark( float Scale ) {
     if ( !Part || !world::PartPos( Part, Pos ) )
         return;
     world::Vec3 Size{ };
-    if ( !world::PartSize( Part, Size ) ) {
-        Size.x = 1.0f;
-        Size.y = 2.0f;
-        Size.z = 1.0f;
-    }
-    world::Vec3 Hi = Pos;
-    world::Vec3 Lo = Pos;
-    Hi.y += Size.y * 0.5f + 0.15f;
-    Lo.y -= Size.y * 0.5f;
-    Hi.x += Size.x * 0.5f;
-    Lo.x -= Size.x * 0.5f;
-    CVector A;
-    CVector B;
-    CVector C;
-    CVector D;
+    esp::ComputeDefaultPartSize( world::PartSize( Part, Size ), Size );
+    world::Vec3 Hi{ }, Lo{ }, Right{ }, Left{ };
+    esp::ComputePartExtents( Pos, Size, Hi, Lo, Right, Left );
+    CVector A, B, C, D;
     if ( !EspDot( Hi, A ) || !EspDot( Lo, B ) )
         return;
-    world::Vec3 Right = Pos;
-    Right.x += Size.x * 0.5f;
-    Right.z += Size.z * 0.5f;
-    world::Vec3 Left = Pos;
-    Left.x -= Size.x * 0.5f;
-    Left.z -= Size.z * 0.5f;
     EspDot( Right, C );
     EspDot( Left, D );
     esp::BBox2D BBox;
