@@ -13,7 +13,7 @@
 
 namespace skin {
 
-inline constexpr int ToneCount = 3;
+inline constexpr int ToneCount = 5;
 inline constexpr int LookCount = 6;
 
 [[nodiscard]] constexpr int ClampToneIndex( int Index ) noexcept {
@@ -63,7 +63,7 @@ inline int& look( ) {
 }
 
 inline const char* toneName( int Index ) {
-    static const char* Names[ ToneCount ] = { "Dark Knight", "Coffee", "Matcha" };
+    static const char* Names[ ToneCount ] = { "Dark Knight", "Coffee", "Matcha", "Dark", "Snowy" };
     return Names[ ClampToneIndex( Index ) ];
 }
 
@@ -78,7 +78,9 @@ inline const float* deep( int Index ) {
     static const float Set[ ToneCount ][ 3 ] = {
         { 0.018f, 0.024f, 0.038f },
         { 0.055f, 0.028f, 0.016f },
-        { 0.020f, 0.038f, 0.018f }
+        { 0.020f, 0.038f, 0.018f },
+        { 0.012f, 0.012f, 0.012f },
+        { 0.650f, 0.680f, 0.720f }
     };
     return Set[ ClampToneIndex( Index ) ];
 }
@@ -87,7 +89,9 @@ inline const float* mid( int Index ) {
     static const float Set[ ToneCount ][ 3 ] = {
         { 0.07f, 0.11f, 0.17f },
         { 0.22f, 0.12f, 0.06f },
-        { 0.08f, 0.16f, 0.07f }
+        { 0.08f, 0.16f, 0.07f },
+        { 0.08f, 0.08f, 0.08f },
+        { 0.820f, 0.840f, 0.880f }
     };
     return Set[ ClampToneIndex( Index ) ];
 }
@@ -96,7 +100,9 @@ inline const float* high( int Index ) {
     static const float Set[ ToneCount ][ 3 ] = {
         { 0.26f, 0.36f, 0.48f },
         { 0.55f, 0.38f, 0.20f },
-        { 0.28f, 0.48f, 0.26f }
+        { 0.28f, 0.48f, 0.26f },
+        { 0.35f, 0.35f, 0.35f },
+        { 0.950f, 0.960f, 0.980f }
     };
     return Set[ ClampToneIndex( Index ) ];
 }
