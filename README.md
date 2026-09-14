@@ -1,7 +1,7 @@
 # Unlinked External
 
-[![CI](https://github.com/viltzn/Unlinked-External/actions/workflows/ci.yml/badge.svg)](https://github.com/viltzn/Unlinked-External/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-11%20passed-brightgreen.svg)](tests/)
+[![CI](https://github.com/cxernlol/Unlinked-External/actions/workflows/ci.yml/badge.svg)](https://github.com/cxernlol/Unlinked-External/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/tests-222%20passed-brightgreen.svg)](tests/)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 
 ## What it is
@@ -76,7 +76,7 @@ Same targeting rules, on its own key (default left mouse).
 | --- | --- | --- |
 | Box | Skeleton | Per-feature visible / hidden swatches |
 | Name | Snaplines | Or one tint for every feature |
-| Health | Range (25–2000) | Matcha and other themes |
+| Health | Range (25–2000) | Dark, Snowy, Matcha, and more |
 | Distance | Team check | |
 
 ### Rage
@@ -113,11 +113,13 @@ Configs save and load from the Configs tab. Each file is a plain text preset und
 | Silent key | Hold to apply silent aim (default Mouse 1) |
 | Aim key | Hold to apply aimbot (default Mouse 2) |
 
+*Note: Typing in text fields (like the Explorer search or config names) automatically suspends cheat hotkeys to prevent accidental activation.*
+
 ---
 
 ## Use
 
-1. Grab the [compiled release](https://github.com/viltzn/Unlinked-External/releases/latest)
+1. Grab the [compiled release](https://github.com/cxernlol/Unlinked-External/releases/latest)
 2. Unzip
 3. Run `Unlinked.exe`
 
