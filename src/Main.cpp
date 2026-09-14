@@ -36,8 +36,6 @@
 
 namespace {
 
-constexpr float MenuWidth = 700.0f;
-constexpr float MenuHeight = 610.0f;
 constexpr float HeaderHeight = 52.0f;
 constexpr float RailWidth = 80.0f;
 constexpr float TabHeight = 70.0f;
@@ -104,6 +102,9 @@ struct Shell {
     bool stream = false;
     bool streamed = false;
     float fade = 100.0f;
+    float width = 700.0f;
+    float height = 610.0f;
+    bool resizing = false;
 };
 
 struct Combat {
@@ -379,7 +380,7 @@ static void Tokens( ) {
 }
 
 static void Center( float Across, float Vertical, float Scale ) {
-    Menu.origin = CVector( ( Across - MenuWidth * Scale ) * 0.5f, ( Vertical - MenuHeight * Scale ) * 0.5f );
+    Menu.origin = CVector( ( Across - Menu.width * Scale ) * 0.5f, ( Vertical - Menu.height * Scale ) * 0.5f );
 }
 
 static void OpenLiveFolds( ) {
@@ -1047,7 +1048,7 @@ static void PlaceExplore( float Across, float Vertical, float Scale ) {
     float Tall = ExploreHeight * Scale;
     float Gap = 16.0f * Scale;
     if ( !Tree.ready ) {
-        float DockX = ui::ComputeDockOffset( Menu.origin.Horizontal, MenuWidth * Scale, Wide, Gap, Across, 8.0f );
+        float DockX = ui::ComputeDockOffset( Menu.origin.Horizontal, Menu.width * Scale, Wide, Gap, Across, 8.0f );
         Tree.dock = CVector( DockX, 0.0f );
         Tree.docked = true;
         Tree.ready = true;
@@ -1882,8 +1883,8 @@ static void TickStream( ) {
 
 static void Draw( float Across, float Vertical ) {
     float Scale = Style->Scale > 0.0f ? Style->Scale : 1.0f;
-    float Wide = MenuWidth * Scale;
-    float Tall = MenuHeight * Scale;
+    float Wide = Menu.width * Scale;
+    float Tall = Menu.height * Scale;
     float Cap = HeaderHeight * Scale;
     float Round = Style->Rounding * Scale;
     float Pad = 10.0f * Scale;
@@ -1939,10 +1940,37 @@ static void Draw( float Across, float Vertical ) {
         }
     }
 
+    CRectangle GripBox( Bounds.Right( ) - 20.0f * Scale, Bounds.Bottom( ) - 20.0f * Scale, 20.0f * Scale, 20.0f * Scale );
+    bool OverGrip = GripBox.Contains( Point ) && !Menu.held && !Tree.held && !Badge.held && !LiveCh.open;
+    
+    if ( OverGrip && Press && !Menu.resizing && !Menu.held && !Menu.mouse ) {
+        Menu.resizing = true;
+        Menu.grab = CVector( Bounds.Right( ) - Point.Horizontal, Bounds.Bottom( ) - Point.Vertical );
+    } else if ( Menu.resizing && !Press ) {
+        Menu.resizing = false;
+    }
+
+    if ( Menu.resizing ) {
+        Wide = Point.Horizontal + Menu.grab.Horizontal - Bounds.Left;
+        Tall = Point.Vertical + Menu.grab.Vertical - Bounds.Top;
+        if ( Wide < 600.0f * Scale ) Wide = 600.0f * Scale;
+        if ( Tall < 500.0f * Scale ) Tall = 500.0f * Scale;
+        if ( Wide > Across ) Wide = Across;
+        if ( Tall > Vertical ) Tall = Vertical;
+        Menu.width = Wide / Scale;
+        Menu.height = Tall / Scale;
+        Bounds = CRectangle( Menu.origin, CVector( Wide, Tall ) );
+        Header = CRectangle( Bounds.Left, Bounds.Top, Bounds.Width, Cap );
+        Rail = CRectangle( Bounds.Left + Pad, Header.Bottom( ) + Pad, RailW, Bounds.Height - Cap - Pad * 2.0f );
+        Stack = CRectangle( Rail.Left, Rail.Top, Rail.Width, TabHeight * Scale * ( float )TabCount + TabGap * Scale * ( float )( TabCount - 1 ) );
+        Content = CRectangle( Rail.Right( ) + Pad, Header.Bottom( ) + Pad, Bounds.Right( ) - Rail.Right( ) - Pad * 2.0f, Bounds.Height - Cap - Pad * 2.0f );
+        Shut = CloseBounds( Header, Scale );
+    }
+
     bool OverTab = Stack.Contains( Point );
     bool OverClose = Shut.Contains( Point );
     bool OverPage = Content.Contains( Point ) || DropHit( Point, Scale );
-    Drag( Bounds, Point, Across, Vertical, Wide, Tall, !OverTab && !OverClose && !OverPage && !Listening( ) && !OverExplore && !Tree.held && !OverMark && !Badge.held );
+    Drag( Bounds, Point, Across, Vertical, Wide, Tall, !OverTab && !OverClose && !OverPage && !Listening( ) && !OverExplore && !Tree.held && !OverMark && !Badge.held && !OverGrip && !Menu.resizing );
     Bounds = CRectangle( Menu.origin, CVector( Wide, Tall ) );
     Header = CRectangle( Bounds.Left, Bounds.Top, Bounds.Width, Cap );
     Rail = CRectangle( Bounds.Left + Pad, Header.Bottom( ) + Pad, RailW, Bounds.Height - Cap - Pad * 2.0f );
@@ -1976,6 +2004,17 @@ static void Draw( float Across, float Vertical ) {
     Canvas->Opacity = Shell * Fade;
     Canvas->Shadow( Bounds, CColor( 6, 10, 18, 130 ), Round, 24.0f * Scale );
     Canvas->Rectangle( Bounds, Style->Surface, Round );
+
+    if ( Menu.resizing || OverGrip ) {
+        Input->Pointer = 32642; 
+        CColor GripInk = Menu.resizing ? Dress.inkHot : Style->Faint;
+        float Gx = Bounds.Right( ) - 6.0f * Scale;
+        float Gy = Bounds.Bottom( ) - 6.0f * Scale;
+        for ( int i = 0; i < 3; i++ ) {
+            float Off = (float)(i * 4) * Scale;
+            Canvas->Line( CVector( Gx - Off, Gy ), CVector( Gx, Gy - Off ), GripInk, 1.5f * Scale );
+        }
+    }
 
     DrawIce( Header, Bounds, Round, 1.0f );
     DrawTitle( Header, Scale, "Unlinked" );

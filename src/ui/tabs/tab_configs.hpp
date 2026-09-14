@@ -18,6 +18,8 @@ static void PackPut( char* Out, int Cap, const char* Key, int Value ) {
 static void PackState( char* Out, int Cap ) {
     Out[ 0 ] = 0;
     PackPut( Out, Cap, "menuKey", Menu.menuKey );
+    PackPut( Out, Cap, "menu.w", ( int )Menu.width );
+    PackPut( Out, Cap, "menu.h", ( int )Menu.height );
     PackPut( Out, Cap, "limit", Menu.limit ? 1 : 0 );
     PackPut( Out, Cap, "fps", ( int )Menu.fps );
     PackPut( Out, Cap, "afk", Menu.afk ? 1 : 0 );
@@ -94,6 +96,8 @@ static void ApplyState( const char* Body ) {
     store::Take( Body, "look", skin::look( ) );
     store::Take( Body, "weather", weather::mode( ) );
     store::Take( Body, "menuKey", Menu.menuKey );
+    store::TakeF( Body, "menu.w", Menu.width );
+    store::TakeF( Body, "menu.h", Menu.height );
     store::TakeB( Body, "aim.on", Aim.on );
     store::TakeB( Body, "aim.team", Aim.team );
     store::TakeB( Body, "aim.vis", Aim.vis );
@@ -156,6 +160,10 @@ static void ApplyState( const char* Body ) {
         Menu.fps = 60.0f;
     if ( Menu.fade < 40.0f )
         Menu.fade = 40.0f;
+    if ( Menu.width < 600.0f )
+        Menu.width = 700.0f;
+    if ( Menu.height < 500.0f )
+        Menu.height = 610.0f;
     if ( Esp.range < 25.0f )
         Esp.range = 25.0f;
     if ( Esp.range > 2000.0f )
