@@ -1508,7 +1508,7 @@ static void TickAim( float Scale ) {
     Last = Now;
     Dt = aim::ClampAimDt( Dt );
 
-    bool ListenBusy = Mute.listen || Aim.listen || Menu.listen || Menu.slide;
+    bool ListenBusy = Listening( ) || Menu.slide;
     bool MuteHeld = Held( Mute.key );
     bool SilentOk = Mute.on && MuteHeld && !ListenBusy;
     bool MouseOk = Aim.on && Held( Aim.key ) && !ListenBusy;
@@ -2016,7 +2016,7 @@ static void Tick( ) {
     world::Pulse( Esp.on || Aim.on || Mute.on, Aim.on || Mute.on, Esp.skeleton, Esp.range, Esp.on || Aim.vis || ( Mute.on && Mute.vis ) );
     TickMenuMouse( );
     TickAim( Style->Scale > 0.0f ? Style->Scale : 1.0f );
-    move::Tick( Context->DeltaTime, Menu.listen || Aim.listen || Mute.listen );
+    move::Tick( Context->DeltaTime, Listening( ) );
     if ( !Mute.on ) {
         silent::Off( );
         silent::Remove( );
