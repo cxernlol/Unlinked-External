@@ -89,6 +89,33 @@ add_custom_command( TARGET Unlinked POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${FONT_DIR}/Inter-SemiBold.ttf"
         "$<TARGET_FILE_DIR:Unlinked>/assets/fonts/Inter-SemiBold.ttf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${FONT_DIR}/JetBrainsMono-Regular.ttf"
+        "$<TARGET_FILE_DIR:Unlinked>/assets/fonts/JetBrainsMono-Regular.ttf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${FONT_DIR}/JetBrainsMono-Medium.ttf"
+        "$<TARGET_FILE_DIR:Unlinked>/assets/fonts/JetBrainsMono-Medium.ttf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${FONT_DIR}/JetBrainsMono-SemiBold.ttf"
+        "$<TARGET_FILE_DIR:Unlinked>/assets/fonts/JetBrainsMono-SemiBold.ttf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${FONT_DIR}/Montserrat-Regular.ttf"
+        "$<TARGET_FILE_DIR:Unlinked>/assets/fonts/Montserrat-Regular.ttf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${FONT_DIR}/Montserrat-Medium.ttf"
+        "$<TARGET_FILE_DIR:Unlinked>/assets/fonts/Montserrat-Medium.ttf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${FONT_DIR}/Montserrat-SemiBold.ttf"
+        "$<TARGET_FILE_DIR:Unlinked>/assets/fonts/Montserrat-SemiBold.ttf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${FONT_DIR}/Outfit-Regular.ttf"
+        "$<TARGET_FILE_DIR:Unlinked>/assets/fonts/Outfit-Regular.ttf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${FONT_DIR}/Outfit-Medium.ttf"
+        "$<TARGET_FILE_DIR:Unlinked>/assets/fonts/Outfit-Medium.ttf"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${FONT_DIR}/Outfit-SemiBold.ttf"
+        "$<TARGET_FILE_DIR:Unlinked>/assets/fonts/Outfit-SemiBold.ttf"
 )
 
 enable_testing( )

@@ -2148,7 +2148,19 @@ static void BindFace( ) {
     const char* Local[ ] = {
         "Inter-Regular.ttf",
         "Inter-Medium.ttf",
-        "Inter-SemiBold.ttf"
+        "Inter-SemiBold.ttf",
+        "JetBrainsMono-Regular.ttf",
+        "JetBrainsMono-Medium.ttf",
+        "JetBrainsMono-SemiBold.ttf",
+        "Montserrat-Regular.ttf",
+        "Montserrat-Medium.ttf",
+        "Montserrat-SemiBold.ttf",
+        "Outfit-Regular.ttf",
+        "Outfit-Medium.ttf",
+        "Outfit-SemiBold.ttf",
+        "Poppins-Regular.ttf",
+        "Poppins-Medium.ttf",
+        "Poppins-SemiBold.ttf"
     };
 
     for ( const char* Name : Local )
