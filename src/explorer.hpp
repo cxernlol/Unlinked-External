@@ -6,7 +6,9 @@
  */
 
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
+#include <chrono>
 #include <vector>
 #include "explorer_icons.h"
 
@@ -85,21 +87,83 @@ inline constexpr TreeNode TreeNodes[ ] = {
 };
 
 inline constexpr int TreeNodeCount = ( int )( sizeof( TreeNodes ) / sizeof( TreeNodes[ 0 ] ) );
+inline constexpr int TreeIconCount = ( int )TreeIcon::RunService + 1;
+
+[[nodiscard]] inline bool PngLooksValid( const std::vector< uint8_t >& Bytes ) noexcept {
+    static constexpr unsigned char Sig[ 8 ] = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+    static constexpr unsigned char End[ 8 ] = { 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82 };
+    if ( Bytes.size( ) < 33 )
+        return false;
+    if ( memcmp( Bytes.data( ), Sig, 8 ) != 0 )
+        return false;
+    return memcmp( Bytes.data( ) + Bytes.size( ) - 8, End, 8 ) == 0;
+}
+
+[[nodiscard]] inline const std::vector< uint8_t >* IconPng( TreeIcon Icon ) noexcept {
+    switch ( Icon ) {
+    case TreeIcon::Model: return &ExplorerIcons::model_image_data;
+    case TreeIcon::Workspace: return &ExplorerIcons::workspace_image_data;
+    case TreeIcon::Folder: return &ExplorerIcons::folder_image_data;
+    case TreeIcon::Gui: return &ExplorerIcons::gui_service_image_data;
+    case TreeIcon::Stats: return &ExplorerIcons::stats_image_data;
+    case TreeIcon::Sound: return &ExplorerIcons::sound_image_data;
+    case TreeIcon::Players: return &ExplorerIcons::players_image_data;
+    case TreeIcon::Script: return &ExplorerIcons::script_image_data;
+    case TreeIcon::LocalScript: return &ExplorerIcons::local_script_image_data;
+    case TreeIcon::Module: return &ExplorerIcons::module_script_image_data;
+    case TreeIcon::Part: return &ExplorerIcons::part_image_data;
+    case TreeIcon::Spawn: return &ExplorerIcons::spawn_location_image_data;
+    case TreeIcon::Camera: return &ExplorerIcons::camera_image_data;
+    case TreeIcon::Humanoid: return &ExplorerIcons::humanoid_image_data;
+    case TreeIcon::Hat: return &ExplorerIcons::hat_image_data;
+    case TreeIcon::Accessory: return &ExplorerIcons::accessory_image_data;
+    case TreeIcon::Player: return &ExplorerIcons::player_image_data;
+    case TreeIcon::ReplicatedStorage: return &ExplorerIcons::replicated_storage_image_data;
+    case TreeIcon::ReplicatedFirst: return &ExplorerIcons::replicated_first_image_data;
+    case TreeIcon::StarterGui: return &ExplorerIcons::starter_gui_image_data;
+    case TreeIcon::StarterPack: return &ExplorerIcons::starter_pack_image_data;
+    case TreeIcon::StarterPlayer: return &ExplorerIcons::starter_player_image_data;
+    case TreeIcon::CoreGui: return &ExplorerIcons::core_gui_image_data;
+    case TreeIcon::Chat: return &ExplorerIcons::chat_image_data;
+    case TreeIcon::RunService: return &ExplorerIcons::run_service_image_data;
+    }
+    return nullptr;
+}
 
 #if __has_include(<ur/app.hpp>)
 inline unsigned long long PngIcon( const std::vector< uint8_t >& Bytes ) {
     CGraphics* Gfx = ur::app::graphics( );
-    if ( !Gfx || Bytes.empty( ) )
-        return 0;
-
     std::vector< unsigned char > Pixels;
     int Width = 0;
     int Height = 0;
-    if ( !Pictures->Decode( Bytes.data( ), Bytes.size( ), Pixels, Width, Height, 0 ) )
-        return 0;
-    if ( Width <= 0 || Height <= 0 || Pixels.empty( ) )
-        return 0;
-    return Gfx->CreateImage( Pixels.data( ), Width, Height );
+    int Decoded = 0;
+    unsigned long long Handle = 0;
+    const char* Stage = "empty";
+    if ( !Gfx || Bytes.empty( ) ) {
+        Stage = !Gfx ? "no-gfx" : "empty-bytes";
+    } else if ( !Pictures->Decode( Bytes.data( ), Bytes.size( ), Pixels, Width, Height, 0 ) ) {
+        Stage = "decode-fail";
+    } else if ( Width <= 0 || Height <= 0 || Pixels.empty( ) ) {
+        Stage = "bad-size";
+        Decoded = 1;
+    } else {
+        Decoded = 1;
+        Handle = Gfx->CreateImage( Pixels.data( ), Width, Height );
+        Stage = Handle ? "ok" : "create-fail";
+    }
+    // #region agent log
+    {
+        FILE* f = nullptr;
+        if ( fopen_s( &f, "C:\\Users\\User\\Desktop\\Codes\\C++\\Unlinked External\\debug-1fba0a.log", "ab" ) == 0 && f ) {
+            unsigned long long ts = ( unsigned long long )std::chrono::duration_cast< std::chrono::milliseconds >(
+                std::chrono::system_clock::now( ).time_since_epoch( ) ).count( );
+            fprintf( f, "{\"sessionId\":\"1fba0a\",\"hypothesisId\":\"B\",\"location\":\"explorer.hpp:PngIcon\",\"message\":\"png-upload\",\"data\":{\"bytes\":%zu,\"gfx\":%d,\"decoded\":%d,\"w\":%d,\"h\":%d,\"handle\":%llu,\"stage\":\"%s\"},\"timestamp\":%llu}\n",
+                Bytes.size( ), Gfx ? 1 : 0, Decoded, Width, Height, Handle, Stage, ts );
+            fclose( f );
+        }
+    }
+    // #endregion
+    return Handle;
 }
 
 inline unsigned long long TreeGlyph( TreeIcon Icon ) {
@@ -110,34 +174,20 @@ inline unsigned long long TreeGlyph( TreeIcon Icon ) {
     if ( Cache[ Index ] )
         return Cache[ Index ];
 
-    const std::vector< uint8_t >* Bytes = nullptr;
-    switch ( Icon ) {
-    case TreeIcon::Model: Bytes = &ExplorerIcons::model_image_data; break;
-    case TreeIcon::Workspace: Bytes = &ExplorerIcons::workspace_image_data; break;
-    case TreeIcon::Folder: Bytes = &ExplorerIcons::folder_image_data; break;
-    case TreeIcon::Gui: Bytes = &ExplorerIcons::gui_service_image_data; break;
-    case TreeIcon::Stats: Bytes = &ExplorerIcons::stats_image_data; break;
-    case TreeIcon::Sound: Bytes = &ExplorerIcons::sound_image_data; break;
-    case TreeIcon::Players: Bytes = &ExplorerIcons::players_image_data; break;
-    case TreeIcon::Script: Bytes = &ExplorerIcons::script_image_data; break;
-    case TreeIcon::LocalScript: Bytes = &ExplorerIcons::local_script_image_data; break;
-    case TreeIcon::Module: Bytes = &ExplorerIcons::module_script_image_data; break;
-    case TreeIcon::Part: Bytes = &ExplorerIcons::part_image_data; break;
-    case TreeIcon::Spawn: Bytes = &ExplorerIcons::spawn_location_image_data; break;
-    case TreeIcon::Camera: Bytes = &ExplorerIcons::camera_image_data; break;
-    case TreeIcon::Humanoid: Bytes = &ExplorerIcons::humanoid_image_data; break;
-    case TreeIcon::Hat: Bytes = &ExplorerIcons::hat_image_data; break;
-    case TreeIcon::Accessory: Bytes = &ExplorerIcons::accessory_image_data; break;
-    case TreeIcon::Player: Bytes = &ExplorerIcons::player_image_data; break;
-    case TreeIcon::ReplicatedStorage: Bytes = &ExplorerIcons::replicated_storage_image_data; break;
-    case TreeIcon::ReplicatedFirst: Bytes = &ExplorerIcons::replicated_first_image_data; break;
-    case TreeIcon::StarterGui: Bytes = &ExplorerIcons::starter_gui_image_data; break;
-    case TreeIcon::StarterPack: Bytes = &ExplorerIcons::starter_pack_image_data; break;
-    case TreeIcon::StarterPlayer: Bytes = &ExplorerIcons::starter_player_image_data; break;
-    case TreeIcon::CoreGui: Bytes = &ExplorerIcons::core_gui_image_data; break;
-    case TreeIcon::Chat: Bytes = &ExplorerIcons::chat_image_data; break;
-    case TreeIcon::RunService: Bytes = &ExplorerIcons::run_service_image_data; break;
+    const std::vector< uint8_t >* Bytes = IconPng( Icon );
+    const int Valid = Bytes && PngLooksValid( *Bytes ) ? 1 : 0;
+    // #region agent log
+    {
+        FILE* f = nullptr;
+        if ( fopen_s( &f, "C:\\Users\\User\\Desktop\\Codes\\C++\\Unlinked External\\debug-1fba0a.log", "ab" ) == 0 && f ) {
+            unsigned long long ts = ( unsigned long long )std::chrono::duration_cast< std::chrono::milliseconds >(
+                std::chrono::system_clock::now( ).time_since_epoch( ) ).count( );
+            fprintf( f, "{\"sessionId\":\"1fba0a\",\"hypothesisId\":\"A\",\"location\":\"explorer.hpp:TreeGlyph\",\"message\":\"icon-lookup\",\"data\":{\"index\":%d,\"hasBytes\":%d,\"pngValid\":%d,\"byteCount\":%zu},\"timestamp\":%llu}\n",
+                Index, Bytes ? 1 : 0, Valid, Bytes ? Bytes->size( ) : 0, ts );
+            fclose( f );
+        }
     }
+    // #endregion
     if ( !Bytes )
         return 0;
     Cache[ Index ] = PngIcon( *Bytes );
