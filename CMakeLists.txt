@@ -10,6 +10,13 @@ if( NOT WIN32 )
     message( FATAL_ERROR "Unlinked builds on Windows." )
 endif( )
 
+if( MSVC )
+    string( REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}" )
+    string( REPLACE "/ZI" "/Z7" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}" )
+    string( REPLACE "/Zi" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}" )
+    string( REPLACE "/ZI" "/Z7" CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}" )
+endif( )
+
 set( UR_BUILD_DEMO OFF CACHE BOOL "" FORCE )
 set( UR_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/third_party/custom-framework" )
 set( FONT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third_party/fonts" )
