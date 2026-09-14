@@ -579,7 +579,7 @@ static void DrawTab( const CRectangle& Tab, const TabSpec& Spec, int Index, floa
     float LabelX = 0.0f, LabelY = 0.0f;
     ui::ComputeTabItemGeometry( Tab.Left, Tab.Top, Tab.Width, Size.Horizontal, Scale, GlyphB, LabelX, LabelY );
 
-    unsigned long long Icon = ur::glyphs::image( Spec.icon, ( int )( 26.0f * Scale + 0.5f ), ur::glyphs::Weight::Solid );
+    unsigned long long Icon = ur::glyphs::image( Spec.icon, ( int )( 24.0f * Scale + 0.5f ), ur::glyphs::Weight::Solid );
     CColor Ink = Mix( Mix( Style->Faint, Dress.ink, Hover ), Dress.inkHot, Active );
     if ( Icon )
         Canvas->Image( CRectangle( GlyphB.left, GlyphB.top, GlyphB.width, GlyphB.height ), Icon, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), Ink, 0.0f );
@@ -746,8 +746,10 @@ static bool DropHit( const CVector& Point, float Scale ) {
     return DropListBox( Scale ).Contains( Point );
 }
 
-static bool DrawDrop( float Left, float Top, float Wide, const char* Label, const char* Id, const char* const* Options, int Count, int& Pick, const CVector& Point, bool Click, float Scale ) {
-    Pick = ui::ValidatePickIndex( Pick, Count );
+// Shared field renderer for single-pick and multi-pick dropdowns.
+static bool DrawDropField( float Left, float Top, float Wide, const char* Label, const char* Id,
+                           const char* const* Options, int Count, const char* DisplayText,
+                           const CVector& Point, bool Click, float Scale ) {
     if ( Label ) {
         Canvas->Text( CVector( Left, Top ), Style->Faint, Label );
         Top += Font->LineSpan + 4.0f * Scale;
@@ -765,17 +767,30 @@ static bool DrawDrop( float Left, float Top, float Wide, const char* Label, cons
     float Tone = ur::motion::toward( Id, Open ? 1.0f : ( Over ? 0.45f : 0.0f ), 26.0f );
     DrawIce( Field, Field, 6.0f * Scale, 0.55f + Tone * 0.45f );
     Canvas->Border( Field, Mix( Dress.foldLine, Style->AccentSoft, Tone ), 6.0f * Scale, 1.0f );
-    Canvas->Text( CVector( Field.Left + 10.0f * Scale, Field.Top + ( Field.Height - Font->LineSpan ) * 0.5f ), Style->Text, Options[ Pick ] );
+    Canvas->Text( CVector( Field.Left + 10.0f * Scale, Field.Top + ( Field.Height - Font->LineSpan ) * 0.5f ), Style->Text, DisplayText );
 
-    unsigned long long Icon = ur::glyphs::image( Open ? ur::icons::Icon::ChevronUp : ur::icons::Icon::ChevronDown, ( int )( 11.0f * Scale + 0.5f ), ur::glyphs::Weight::Solid );
     float Mark = 11.0f * Scale;
+    unsigned long long Icon = ur::glyphs::image(
+        Open ? ur::icons::Icon::ChevronUp : ur::icons::Icon::ChevronDown,
+        ( int )( Mark + 0.5f ), ur::glyphs::Weight::Solid );
     if ( Icon )
-        Canvas->Image( CRectangle( Field.Right( ) - Mark - 10.0f * Scale, Field.Top + ( Field.Height - Mark ) * 0.5f, Mark, Mark ), Icon, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), Style->Faint, 0.0f );
+        Canvas->Image( CRectangle( Field.Right( ) - Mark - 10.0f * Scale, Field.Top + ( Field.Height - Mark ) * 0.5f, Mark, Mark ),
+                       Icon, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), Style->Faint, 0.0f );
 
     if ( Open ) {
         DropField = Field;
         DropOpts = Options;
         DropCount = Count;
+    }
+    return Over;
+}
+
+static bool DrawDrop( float Left, float Top, float Wide, const char* Label, const char* Id,
+                      const char* const* Options, int Count, int& Pick,
+                      const CVector& Point, bool Click, float Scale ) {
+    Pick = ui::ValidatePickIndex( Pick, Count );
+    bool Over = DrawDropField( Left, Top, Wide, Label, Id, Options, Count, Options[ Pick ], Point, Click, Scale );
+    if ( DropId && strcmp( DropId, Id ) == 0 ) {
         DropPick = &Pick;
         DropBits = nullptr;
         DropMany = false;
@@ -787,36 +802,12 @@ static const char* BitLabel( const char* const* Options, int Count, int Bits ) {
     return ui::BitLabel( Options, Count, Bits );
 }
 
-static bool DrawDropBits( float Left, float Top, float Wide, const char* Label, const char* Id, const char* const* Options, int Count, int& Bits, const CVector& Point, bool Click, float Scale ) {
+static bool DrawDropBits( float Left, float Top, float Wide, const char* Label, const char* Id,
+                          const char* const* Options, int Count, int& Bits,
+                          const CVector& Point, bool Click, float Scale ) {
     Bits = ui::ValidateBitmask( Bits, Count );
-    if ( Label ) {
-        Canvas->Text( CVector( Left, Top ), Style->Faint, Label );
-        Top += Font->LineSpan + 4.0f * Scale;
-    }
-
-    CRectangle Field( Left, Top, Wide, 28.0f * Scale );
-    bool Over = Field.Contains( Point ) && !Moving( ) && !Menu.slide;
-    bool Open = DropId && strcmp( DropId, Id ) == 0;
-    if ( Over && Click ) {
-        DropId = Open ? nullptr : Id;
-        DropFresh = DropId != nullptr;
-    }
-    Open = DropId && strcmp( DropId, Id ) == 0;
-
-    float Tone = ur::motion::toward( Id, Open ? 1.0f : ( Over ? 0.45f : 0.0f ), 26.0f );
-    DrawIce( Field, Field, 6.0f * Scale, 0.55f + Tone * 0.45f );
-    Canvas->Border( Field, Mix( Dress.foldLine, Style->AccentSoft, Tone ), 6.0f * Scale, 1.0f );
-    Canvas->Text( CVector( Field.Left + 10.0f * Scale, Field.Top + ( Field.Height - Font->LineSpan ) * 0.5f ), Style->Text, BitLabel( Options, Count, Bits ) );
-
-    unsigned long long Icon = ur::glyphs::image( Open ? ur::icons::Icon::ChevronUp : ur::icons::Icon::ChevronDown, ( int )( 11.0f * Scale + 0.5f ), ur::glyphs::Weight::Solid );
-    float Mark = 11.0f * Scale;
-    if ( Icon )
-        Canvas->Image( CRectangle( Field.Right( ) - Mark - 10.0f * Scale, Field.Top + ( Field.Height - Mark ) * 0.5f, Mark, Mark ), Icon, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), Style->Faint, 0.0f );
-
-    if ( Open ) {
-        DropField = Field;
-        DropOpts = Options;
-        DropCount = Count;
+    bool Over = DrawDropField( Left, Top, Wide, Label, Id, Options, Count, BitLabel( Options, Count, Bits ), Point, Click, Scale );
+    if ( DropId && strcmp( DropId, Id ) == 0 ) {
         DropPick = nullptr;
         DropBits = &Bits;
         DropMany = true;
@@ -860,26 +851,12 @@ static bool DrawDropList( const CVector& Point, bool Click, float Scale ) {
     return Over;
 }
 
-static float SwatchSize( float Scale ) {
-    return ui::SwatchSize( Scale );
-}
 
-static float SwatchGap( float Scale ) {
-    return ui::SwatchGap( Scale );
-}
-
-static int SwatchColumns( float Wide, int Count, float Scale ) {
-    return ui::SwatchColumns( Wide, Count, Scale );
-}
-
-static float SwatchTall( float Wide, int Count, float Scale ) {
-    return ui::SwatchTall( Wide, Count, Scale );
-}
 
 static bool DrawSwatches( float Left, float Top, float Wide, int Count, const CColor* Colors, int& Pick, const char* Prefix, const CVector& Point, bool Click, float Scale ) {
-    float Size = SwatchSize( Scale );
-    float Gap = SwatchGap( Scale );
-    int Columns = SwatchColumns( Wide, Count, Scale );
+    float Size = ui::SwatchSize( Scale );
+    float Gap = ui::SwatchGap( Scale );
+    int Columns = ui::SwatchColumns( Wide, Count, Scale );
     bool Busy = false;
     for ( int Index = 0; Index < Count; Index++ ) {
         ui::RectBounds ChipB = ui::ComputeGridItemBounds( Left, Top, Size, Size, Gap, Gap, Columns, Index );
@@ -1964,7 +1941,7 @@ static void Draw( float Across, float Vertical ) {
 
     bool OverTab = Stack.Contains( Point );
     bool OverClose = Shut.Contains( Point );
-    bool OverPage = ( ( Menu.tab == TabAimbot || Menu.tab == TabRage || Menu.tab == TabEsp || Menu.tab == TabConfigs || Menu.tab == TabSettings ) && Content.Contains( Point ) ) || DropHit( Point, Scale );
+    bool OverPage = Content.Contains( Point ) || DropHit( Point, Scale );
     Drag( Bounds, Point, Across, Vertical, Wide, Tall, !OverTab && !OverClose && !OverPage && !Listening( ) && !OverExplore && !Tree.held && !OverMark && !Badge.held );
     Bounds = CRectangle( Menu.origin, CVector( Wide, Tall ) );
     Header = CRectangle( Bounds.Left, Bounds.Top, Bounds.Width, Cap );

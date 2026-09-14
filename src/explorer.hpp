@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <chrono>
+
 #include <vector>
 #include "explorer_icons.h"
 
@@ -151,18 +151,6 @@ inline unsigned long long PngIcon( const std::vector< uint8_t >& Bytes ) {
         Handle = Gfx->CreateImage( Pixels.data( ), Width, Height );
         Stage = Handle ? "ok" : "create-fail";
     }
-    // #region agent log
-    {
-        FILE* f = nullptr;
-        if ( fopen_s( &f, "C:\\Users\\User\\Desktop\\Codes\\C++\\Unlinked External\\debug-1fba0a.log", "ab" ) == 0 && f ) {
-            unsigned long long ts = ( unsigned long long )std::chrono::duration_cast< std::chrono::milliseconds >(
-                std::chrono::system_clock::now( ).time_since_epoch( ) ).count( );
-            fprintf( f, "{\"sessionId\":\"1fba0a\",\"hypothesisId\":\"B\",\"location\":\"explorer.hpp:PngIcon\",\"message\":\"png-upload\",\"data\":{\"bytes\":%zu,\"gfx\":%d,\"decoded\":%d,\"w\":%d,\"h\":%d,\"handle\":%llu,\"stage\":\"%s\"},\"timestamp\":%llu}\n",
-                Bytes.size( ), Gfx ? 1 : 0, Decoded, Width, Height, Handle, Stage, ts );
-            fclose( f );
-        }
-    }
-    // #endregion
     return Handle;
 }
 
@@ -175,19 +163,6 @@ inline unsigned long long TreeGlyph( TreeIcon Icon ) {
         return Cache[ Index ];
 
     const std::vector< uint8_t >* Bytes = IconPng( Icon );
-    const int Valid = Bytes && PngLooksValid( *Bytes ) ? 1 : 0;
-    // #region agent log
-    {
-        FILE* f = nullptr;
-        if ( fopen_s( &f, "C:\\Users\\User\\Desktop\\Codes\\C++\\Unlinked External\\debug-1fba0a.log", "ab" ) == 0 && f ) {
-            unsigned long long ts = ( unsigned long long )std::chrono::duration_cast< std::chrono::milliseconds >(
-                std::chrono::system_clock::now( ).time_since_epoch( ) ).count( );
-            fprintf( f, "{\"sessionId\":\"1fba0a\",\"hypothesisId\":\"A\",\"location\":\"explorer.hpp:TreeGlyph\",\"message\":\"icon-lookup\",\"data\":{\"index\":%d,\"hasBytes\":%d,\"pngValid\":%d,\"byteCount\":%zu},\"timestamp\":%llu}\n",
-                Index, Bytes ? 1 : 0, Valid, Bytes ? Bytes->size( ) : 0, ts );
-            fclose( f );
-        }
-    }
-    // #endregion
     if ( !Bytes )
         return 0;
     Cache[ Index ] = PngIcon( *Bytes );
@@ -210,7 +185,7 @@ inline TreeIcon IconFor( const char* Klass ) {
         return TreeIcon::Camera;
     if ( !_stricmp( Klass, "Folder" ) )
         return TreeIcon::Folder;
-    if ( !_stricmp( Klass, "Model" ) )
+    if ( !_stricmp( Klass, "DataModel" ) || !_stricmp( Klass, "Model" ) )
         return TreeIcon::Model;
     if ( !_stricmp( Klass, "SpawnLocation" ) )
         return TreeIcon::Spawn;
