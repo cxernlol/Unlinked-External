@@ -63,7 +63,7 @@ static bool DrawEspCustom( const CRectangle& Body, const CVector& Point, bool Cl
         for ( int Index = 0; Index < FeatCount; Index++ )
             Dye.vis[ Index ] = VisPick;
     }
-    Top += SwatchTall( Wide, 13, Scale ) + 14.0f * Scale;
+    Top += ui::SwatchTall( Wide, 13, Scale ) + 14.0f * Scale;
     Canvas->Text( CVector( Left, Top ), Style->Faint, All ? "Hidden (all)" : "Hidden" );
     Top += Font->LineSpan + 8.0f * Scale;
     int WasHid = HidPick;

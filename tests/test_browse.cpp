@@ -125,17 +125,6 @@ TEST_CASE( "Explorer: IconPng blobs are valid PNGs for every TreeIcon" ) {
 TEST_CASE( "Explorer: TreeNodes type maps to the node's TreeIcon" ) {
     for ( int Index = 0; Index < TreeNodeCount; Index++ ) {
         TreeIcon Mapped = IconFor( TreeNodes[ Index ].type );
-        // #region agent log
-        if ( Mapped != TreeNodes[ Index ].icon ) {
-            FILE* f = nullptr;
-            if ( fopen_s( &f, "C:\\Users\\User\\Desktop\\Codes\\C++\\Unlinked External\\debug-1fba0a.log", "ab" ) == 0 && f ) {
-                fprintf( f, "{\"sessionId\":\"1fba0a\",\"hypothesisId\":\"C\",\"location\":\"test_browse.cpp:TreeNodes\",\"message\":\"icon-mismatch\",\"data\":{\"index\":%d,\"type\":\"%s\",\"mapped\":%d,\"expected\":%d},\"timestamp\":%llu}\n",
-                    Index, TreeNodes[ Index ].type, ( int )Mapped, ( int )TreeNodes[ Index ].icon,
-                    ( unsigned long long )std::chrono::duration_cast< std::chrono::milliseconds >( std::chrono::system_clock::now( ).time_since_epoch( ) ).count( ) );
-                fclose( f );
-            }
-        }
-        // #endregion
         CHECK_EQ( Mapped, TreeNodes[ Index ].icon );
     }
 }
