@@ -1,5 +1,8 @@
 #pragma once
 
+#include "../../base64.hpp"
+#include "../../clipboard.hpp"
+
 /**
  * @file tab_configs.hpp
  * @brief Unlinked External - Configuration profile management, serialization, and preset library tab.
@@ -318,7 +321,7 @@ static bool DrawConfigs( const CRectangle& Content, const CVector& Point, bool C
     float Line = Font ? Font->LineSpan : 16.0f * Scale;
     float FieldH = 30.0f * Scale;
     float ActH = 32.0f * Scale;
-    float ManNeed = 12.0f * Scale + Line + 2.0f * Scale + Line + 8.0f * Scale + Line + 4.0f * Scale + FieldH + 8.0f * Scale + ActH + 6.0f * Scale + ActH + 8.0f * Scale + Line + 14.0f * Scale;
+    float ManNeed = 12.0f * Scale + Line + 2.0f * Scale + Line + 8.0f * Scale + Line + 4.0f * Scale + FieldH + 8.0f * Scale + ActH + 6.0f * Scale + ActH + 6.0f * Scale + ActH + 8.0f * Scale + Line + 14.0f * Scale;
     float ManBodyH = ManNeed;
     if ( ManBodyH > Room )
         ManBodyH = Room;
@@ -457,6 +460,53 @@ static bool DrawConfigs( const CRectangle& Content, const CVector& Point, bool C
             PackNote( "Saved" );
         else
             PackNote( "Save failed" );
+        Packs.confirm = false;
+        Busy = true;
+    }
+    CursorY += ActH + 6.0f * Scale;
+
+    ui::RectBounds CopyB, PasteB;
+    ui::ComputeSplitPair( Side + PadX, CursorY, InnerW, 8.0f * Scale, ActH, CopyB, PasteB );
+    CRectangle CopyBtn( CopyB.left, CopyB.top, CopyB.width, CopyB.height );
+    CRectangle PasteBtn( PasteB.left, PasteB.top, PasteB.width, PasteB.height );
+    if ( DrawAction( CopyBtn, "Copy", Point, Click, Scale, false ) ) {
+        const char* Target = Packs.count > 0 ? Packs.names[ Packs.pick ] : Packs.live;
+        if ( store::Valid( Target ) ) {
+            char Body[ store::BodyCap ] = {0};
+            if ( store::Read( Target, Body, store::BodyCap ) ) {
+                std::string encoded = base64::encode( Body );
+                if ( clipboard::Copy( encoded ) )
+                    PackNote( "Copied to clipboard" );
+                else
+                    PackNote( "Failed to copy" );
+            } else {
+                PackNote( "Read failed" );
+            }
+        } else {
+            PackNote( "Select a config" );
+        }
+        Packs.confirm = false;
+        Busy = true;
+    }
+    if ( DrawAction( PasteBtn, "Paste", Point, Click, Scale, false ) ) {
+        std::string encoded = clipboard::Paste( );
+        if ( !encoded.empty( ) ) {
+            std::string decoded = base64::decode( encoded );
+            if ( !decoded.empty( ) && decoded.find( "limit" ) != std::string::npos ) {
+                char ImportName[ store::NameCap ];
+                snprintf( ImportName, sizeof( ImportName ), "Imported_%u", GetTickCount( ) % 10000 );
+                if ( store::Write( ImportName, decoded.c_str( ) ) ) {
+                    PackNote( "Imported config!" );
+                    PackRefresh( );
+                } else {
+                    PackNote( "Save failed" );
+                }
+            } else {
+                PackNote( "Invalid data" );
+            }
+        } else {
+            PackNote( "Clipboard empty" );
+        }
         Packs.confirm = false;
         Busy = true;
     }
