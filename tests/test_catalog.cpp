@@ -5,10 +5,12 @@ TEST_CASE( "Catalog: Tone names and boundary clamping" ) {
     CHECK_EQ( std::string( skin::toneName( 0 ) ), "Dark Knight" );
     CHECK_EQ( std::string( skin::toneName( 1 ) ), "Coffee" );
     CHECK_EQ( std::string( skin::toneName( 2 ) ), "Matcha" );
+    CHECK_EQ( std::string( skin::toneName( 3 ) ), "Dark" );
+    CHECK_EQ( std::string( skin::toneName( 4 ) ), "Snowy" );
 
     // Out of bounds falls back to 0 ("Dark Knight")
     CHECK_EQ( std::string( skin::toneName( -1 ) ), "Dark Knight" );
-    CHECK_EQ( std::string( skin::toneName( 3 ) ), "Dark Knight" );
+    CHECK_EQ( std::string( skin::toneName( 5 ) ), "Dark Knight" );
     CHECK_EQ( std::string( skin::toneName( 999 ) ), "Dark Knight" );
 }
 
@@ -90,8 +92,10 @@ TEST_CASE( "Catalog: ClampToneIndex boundary limits" ) {
     CHECK_EQ( skin::ClampToneIndex( 0 ), 0 );
     CHECK_EQ( skin::ClampToneIndex( 1 ), 1 );
     CHECK_EQ( skin::ClampToneIndex( 2 ), 2 );
+    CHECK_EQ( skin::ClampToneIndex( 3 ), 3 );
+    CHECK_EQ( skin::ClampToneIndex( 4 ), 4 );
     CHECK_EQ( skin::ClampToneIndex( -1 ), 0 );
-    CHECK_EQ( skin::ClampToneIndex( 3 ), 0 );
+    CHECK_EQ( skin::ClampToneIndex( 5 ), 0 );
     CHECK_EQ( skin::ClampToneIndex( 999 ), 0 );
 }
 
