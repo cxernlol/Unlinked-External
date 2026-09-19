@@ -8,7 +8,7 @@
 
 Unlinked is a transparent, click-through overlay. The menu sits in the center of the screen. Clicks on the panel stay with Unlinked. Clicks outside go through to the game.
 
-Insert shows or hides the menu (the bind is remappable). Escape never quits Unlinked — it only closes a listen, a dropdown, the explorer, or a draft.
+The overlay is a fully standalone executable featuring a natively resizable UI. Insert shows or hides the menu (the bind is remappable). Escape never quits Unlinked — it only closes a listen, a dropdown, the explorer, or a draft.
 
 Configs and the offset cache live in `%AppData%\Unlinked`.
 
@@ -70,7 +70,7 @@ Same targeting rules, on its own key (default left mouse).
 | Target | The bone you pick is the bone it uses — Head stays on the head |
 | Draw FOV | Circle on the overlay |
 
-### ESP (Visual Enhancements)
+### Visual (Enhancements)
 
 | Overlay | Visuals | Extras |
 | --- | --- | --- |
@@ -78,7 +78,7 @@ Same targeting rules, on its own key (default left mouse).
 | Out-of-FOV Arrows | Directional indicators for off-screen targets | Spectator Warning System |
 | Memory Chams | Direct material and color overrides in memory | Custom Hit/Kill Sounds |
 
-### Movement & Exploits
+### Exploits (Movement & Utility)
 
 | Category | Features |
 | --- | --- |
@@ -127,10 +127,9 @@ Configs save and load from the Configs tab. Each file is a plain text preset und
 ## Use
 
 1. Grab the [compiled release](https://github.com/cxernlol/Unlinked-External/releases/latest)
-2. Unzip
-3. Run `Unlinked.exe`
+2. Run `Unlinked.exe`
 
-`assets/` must stay beside the exe. Offsets still sync on first launch.
+The executable is 100% standalone. No `assets/` folder is required. Offsets still sync on first launch.
 
 ## Build
 
@@ -168,7 +167,7 @@ ctest --preset windows-debug --output-on-failure
 
 ```
 build.bat           one-click compile and test runner
-assets/             fonts, icons, themes (copied next to the built exe)
+assets/             source assets (fonts, icons, logo) compiled directly into the executable
 src/                overlay, aim, ESP, configs
 tests/              zero-dependency unit test suite and runner
 third_party/custom-framework   bundled UI library
