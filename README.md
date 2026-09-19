@@ -8,7 +8,7 @@
 
 Unlinked is a transparent, click-through overlay. The menu sits in the center of the screen. Clicks on the panel stay with Unlinked. Clicks outside go through to the game.
 
-The overlay is a fully standalone executable featuring a natively resizable UI. Insert shows or hides the menu (the bind is remappable). Escape never quits Unlinked — it only closes a listen, a dropdown, the explorer, or a draft.
+The overlay is a fully standalone executable featuring a natively resizable UI. Insert shows or hides the menu (the bind is remappable). Escape never quits Unlinked â€” it only closes a listen, a dropdown, the explorer, or a draft.
 
 Configs and the offset cache live in `%AppData%\Unlinked`.
 
@@ -16,7 +16,7 @@ Configs and the offset cache live in `%AppData%\Unlinked`.
 
 ## Offsets
 
-Unlinked does not ship a frozen offset list. It reads your running Roblox build from the process path (`version-…`) and compares it to the dump on [`offsets.imtheo.lol`](https://offsets.imtheo.lol).
+Unlinked does not ship a frozen offset list. It reads your running Roblox build from the process path (`version-â€¦`) and compares it to the dump on [`offsets.imtheo.lol`](https://offsets.imtheo.lol).
 
 On startup it:
 
@@ -67,7 +67,7 @@ Same targeting rules, on its own key (default left mouse).
 | Chance | `0` never activates. `100` always activates. Values in between roll once per press |
 | Backtrack | Time manipulation to rewind target positions based on tick history |
 | Hardware Input | Route inputs via hardware/driver level for maximum stealth |
-| Target | The bone you pick is the bone it uses — Head stays on the head |
+| Target | The bone you pick is the bone it uses â€” Head stays on the head |
 | Draw FOV | Circle on the overlay |
 
 ### Visual (Enhancements)
@@ -182,6 +182,6 @@ media/              README preview, menu clip, in-game clip
 - Windows 10 or 11, 64-bit
 - Roblox (`RobloxPlayerBeta.exe`)
 - Network on first launch so offsets can sync (after that, the cache is enough)
-- Visual Studio only if you run `build.bat` — not required to run the release exe
+- Visual Studio only if you run `build.bat` â€” not required to run the release exe
 
 **Unlinked**.

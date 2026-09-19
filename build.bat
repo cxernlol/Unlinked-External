@@ -87,6 +87,9 @@ if "%RUN_TEST%"=="1" (
         echo Error: unit tests failed.
         exit /b 1
     )
+    if "%PRESET%"=="windows-release" (
+        powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0update_badge.ps1"
+    )
 )
 
 echo Run: "%~dp0%OUT%"
