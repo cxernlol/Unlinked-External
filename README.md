@@ -120,7 +120,7 @@ Configs save and load from the Configs tab. Each file is a plain text preset und
 | Silent key | Hold to apply silent aim (default Mouse 1) |
 | Aim key | Hold to apply aimbot (default Mouse 2) |
 
-*Note: Typing in text fields (like the Explorer search or config names) automatically suspends tool hotkeys to prevent accidental activation.*
+*Note: Typing in text fields (like the Explorer search or config names) automatically suspends cheat hotkeys to prevent accidental activation.*
 
 ---
 
