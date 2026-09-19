@@ -23,9 +23,6 @@ To maintain compatibility with the existing ImGui framework, all new features wi
 Goal: Automatically fire when an enemy is in the crosshair.
 Implementation: Add a new triggerbot.hpp module. Read the local player's look vector and check for intersection with enemy hitboxes (using existing offset/bone logic). Add configurable pre-fire delay and burst duration settings to the UI.
 
-## Feature 2: 2D Radar Overlay
-Goal: Provide a 2D spatial representation of enemies relative to the player.
-Implementation: Add a radar.hpp module. Translate 3D world coordinates of enemies into a 2D plane based on the local player's camera CFrame. Draw a scalable window with the custom UI framework to plot these points, color-coded by team.
 
 ## Feature 3: Advanced Rage Features
 Goal: Expand the rage tab with more aggressive exploits.
@@ -35,17 +32,6 @@ Click-to-Teleport: Implement a raycast from the camera to the 3D world on Ctrl+C
 Speedhack & Fly: Add memory writes to WalkSpeed and manipulate velocity/gravity vectors.
 Hitbox Expander: Overwrite the size properties of enemy parts to make targeting easier.
 
-## Feature 4: Dynamic Ping-Based Prediction
-Goal: Improve aimbot accuracy by dynamically adjusting prediction based on real-time ping.
-Implementation: Hook into NetworkClient or RakNet stats (requires finding the relevant offsets) to read ping. Modify the prediction logic in aim.hpp and silent.hpp to use this dynamic value instead of a static scalar.
-
-## Feature 5: Config Sharing (Base64)
-Goal: Allow users to easily share config presets as strings.
-Implementation: Update store.hpp to support serializing the current config state to a Base64 string and deserializing from a string. Add "Import/Export to Clipboard" buttons in the Configs tab UI.
-
-## Feature 6: Out-of-FOV Arrows
-Goal: Indicate the direction of enemies currently outside the screen bounds.
-Implementation: Update esp.hpp. Calculate the 2D screen coordinate for off-screen enemies and clamp it to the edge of the screen or FOV circle. Draw directional triangles/arrows pointing towards them.
 
 ## Feature 7: Anti-Reverse Engineering Security
 Goal: Protect the external from being trivially analyzed, dumped, or cracked by other developers/skids.
