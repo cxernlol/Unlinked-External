@@ -612,7 +612,7 @@ static bool DrawClose( const CRectangle& Header, const CVector& Point, bool Clic
     if ( Hover > 0.02f )
         Canvas->Rectangle( Close, CColor( 210, 64, 72, ( int )( 200.0f * Hover ) ), Round );
 
-    unsigned long long Icon = ur::glyphs::image( ur::icons::Icon::Xmark, ( int )( 14.0f * Scale + 0.5f ), ur::glyphs::Weight::Solid );
+    unsigned long long Icon = ur::image::memory( icon_x_data, icon_x_size, ( int )( 14.0f * Scale + 0.5f ) );
     CColor Ink = Mix( CColor( 220, 226, 236 ), CColor( 255, 246, 246 ), Hover );
     float Mark = 14.0f * Scale;
     ui::RectBounds MarkB = ui::ComputeCenteredIcon( { Close.Left, Close.Top, Close.Width, Close.Height }, Mark );
