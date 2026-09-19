@@ -33,20 +33,7 @@ Speedhack & Fly: Add memory writes to WalkSpeed and manipulate velocity/gravity 
 Hitbox Expander: Overwrite the size properties of enemy parts to make targeting easier.
 
 
-## Feature 7: Anti-Reverse Engineering Security
-Goal: Protect the external from being trivially analyzed, dumped, or cracked by other developers/skids.
-Implementation:
-Compile-time String Encryption: Implement a constexpr macro to encrypt all sensitive strings (window names, memory signatures, API endpoints) at compile time and decrypt them only when needed in memory.
-Anti-Debugging: Add basic usermode checks in Main.cpp (e.g., IsDebuggerPresent(), CheckRemoteDebuggerPresent(), and PEB BeingDebugged flag) to terminate the process if a debugger like x64dbg is attached.
-Anti-Dump: Erase the PE headers in memory post-initialization so standard dumping tools (like Scylla) fail to reconstruct a runnable executable.
 
-## Feature 8: Stream-Proof Overlay (OBS Bypass)
-Goal: Make the cheat entirely invisible to screen recording software like OBS or Discord screenshare, perfect for closet cheating or streaming.
-Implementation: Utilize `SetWindowDisplayAffinity` with `WDA_EXCLUDEFROMCAPTURE` on our custom UI overlay window. This forces the DWM to hide the window from capture APIs.
-
-## Feature 9: Spectator Warning System
-Goal: Alert the user if another player or admin is actively spectating them, allowing them to toggle off rage features instantly.
-Implementation: Scan the camera or player hierarchy structures in memory to identify if any other player's camera subject is set to the local player's character. Display a bold, flashing warning on the UI.
 
 ## Feature 10: Memory-based Chams (Material/Color Override)
 Goal: Force enemies to be visible through walls by manipulating their rendering materials and colors directly in memory.
@@ -60,9 +47,6 @@ Implementation: Calculate a curved path with slight, randomized overshoots inste
 Goal: Provide detailed visual information on enemy posture and orientation.
 Implementation: Use RPM to read the 3D bone matrices (Head, Torso, Joints) of the enemies, project them to the 2D overlay, and draw connecting lines.
 
-## Feature 13: Hardware / Driver Mouse Input
-Goal: Evade anti-cheat detection methods that flag standard `mouse_event` API calls.
-Implementation: Route aimbot and triggerbot inputs through a custom vulnerable driver (e.g., intercepting Logitech G-Hub) or a physical Arduino device to simulate genuine hardware movements.
 
 ## Feature 14: FOV Changer (Field of View)
 Goal: Allow the user to widen their field of view beyond the game's normal constraints.
@@ -135,16 +119,7 @@ Implementation: Implement an ImGui `Hotkey()` widget globally across all tabs ne
 # Verification Plan (Phased Execution)
 Validation will occur in distinct phases to isolate dependencies and minimize debugging overhead. **Phase 1 and Phase 4 will be executed and validated first.**
 
-## Phase 1: Foundation & Read-Only (PRIORITY 1)
-*Goal: Prove memory reading and drawing work flawlessly.*
-- **Feature 2 & 6 (Radar & FOV Arrows)**: Validate World-to-Screen (W2S) math in a dead server.
-- **Feature 9 (Spectator Warning)**: Use an alt account to spectate and verify `CameraSubject` reading.
 
-## Phase 4: Security & Stealth (PRIORITY 2)
-*Goal: Secure the external before complex features complicate debugging.*
-- **Feature 8 (OBS Bypass)**: Launch OBS and verify `WDA_EXCLUDEFROMCAPTURE` completely hides the overlay.
-- **Feature 7 (Anti-Reverse Engineering)**: Compile a release build and attempt to attach x64dbg (should terminate).
-- **Feature 13 (Hardware Mouse Input)**: Validate Arduino/G-Hub interception translates aimbot coordinates without latency.
 
 ## Phase 2: Basic Memory Writing
 *Goal: Ensure non-destructive WPM operations stick.*
