@@ -118,6 +118,7 @@ struct Snap {
     float localPing = 0.0f;
     Actor list[ ActorMax ];
     char note[ 80 ] = { };
+    int spectators = 0;
 };
 
 struct Off {
@@ -184,6 +185,7 @@ struct Off {
     uintptr_t mouseObj2 = 0;
     uintptr_t mousePos = 0;
     uintptr_t camMode = 0;
+    uintptr_t camSubject = 0;
 };
 
 using NtReadFn = LONG ( WINAPI* )( HANDLE, void*, void*, SIZE_T, SIZE_T* );
@@ -406,6 +408,7 @@ inline void LoadOff( ) {
     O.mouseObj2 = offsets::Get( "MouseService", "InputObject2" );
     O.mousePos = offsets::Get( "MouseService", "MousePosition" );
     O.camMode = offsets::Get( "Player", "CameraMode" );
+    O.camSubject = offsets::Get( "Camera", "CameraSubject" );
 }
 
 inline bool Printable( const char* Text, int Len ) {

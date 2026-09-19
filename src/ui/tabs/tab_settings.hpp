@@ -69,6 +69,11 @@ static bool DrawMiscBody( const CRectangle& Body, const CVector& Point, bool Cli
     DrawIce( Field, Field, 6.0f * Scale, 1.0f );
     Canvas->Border( Field, Mix( CColor( 90, 110, 140, 160 ), Style->AccentSoft, Wait * 0.75f + BindHover * 0.4f ), 6.0f * Scale, 1.0f );
     Canvas->Text( CVector( Field.Left + 10.0f * Scale, Field.Top + ( Field.Height - Font->LineSpan ) * 0.5f ), Mix( Style->Text, Style->AccentSoft, Wait ), Menu.listen ? "Press a key..." : KeyLabel( Menu.menuKey ) );
+    
+    Top = Field.Bottom( ) + 10.0f * Scale;
+    CRectangle HwRow( Left, Top, Wide, Row );
+    Busy = DrawSwitch( HwRow, "HW Mouse Route", "set.hwmouse", Menu.hwMouse, Point, Click, Scale ) || Busy;
+
     return Busy || OverBind;
 }
 

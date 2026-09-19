@@ -39,6 +39,12 @@ static bool DrawEspVisual( const CRectangle& Body, const CVector& Point, bool Cl
     Busy = DrawSwitch( CRectangle( B0.left, B0.top, B0.width, B0.height ), "Skeleton", "esp.skel", Esp.skeleton, Point, Click, Scale ) || Busy;
     ui::RectBounds B1 = ui::ComputeStackedRow( Left, Top, Wide, Row, Gap, 1 );
     Busy = DrawSwitch( CRectangle( B1.left, B1.top, B1.width, B1.height ), "Snaplines", "esp.snap", Esp.snap, Point, Click, Scale ) || Busy;
+    ui::RectBounds B2 = ui::ComputeStackedRow( Left, Top, Wide, Row, Gap, 2 );
+    Busy = DrawSwitch( CRectangle( B2.left, B2.top, B2.width, B2.height ), "2D Radar", "esp.radar", Esp.radar, Point, Click, Scale ) || Busy;
+    ui::RectBounds B3 = ui::ComputeStackedRow( Left, Top, Wide, Row, Gap, 3 );
+    Busy = DrawSwitch( CRectangle( B3.left, B3.top, B3.width, B3.height ), "OOF Arrows", "esp.fovarrows", Esp.fovArrows, Point, Click, Scale ) || Busy;
+    ui::RectBounds B4 = ui::ComputeStackedRow( Left, Top, Wide, Row, Gap, 4 );
+    Busy = DrawSwitch( CRectangle( B4.left, B4.top, B4.width, B4.height ), "Spectator Warning", "esp.spectator", Esp.spectatorWarn, Point, Click, Scale ) || Busy;
     return Busy;
 }
 

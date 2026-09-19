@@ -45,43 +45,48 @@ Launch Roblox through Fishstrap after that. Settings still shows the dump hash a
 
 ## Features
 
-### Aimbot
+### Aimbot (Targeting Utilities)
 
 | Control | What it does |
 | --- | --- |
 | Enabled | Hold-to-aim with a remappable key (default right mouse) |
-| Team check | Skip teammates |
-| Visible only | Skip targets the local camera cannot see |
-| Sticky aim | Keep the current target while the key is held |
-| Prediction | Lead moving targets with ping and distance |
-| FOV | Screen radius, with an optional drawn circle |
-| Smooth | How fast the cursor settles |
-| Priority | Closest to crosshair, closest in world, or a mix |
+| Triggerbot | Automatically fire when a target enters the crosshair |
+| Humanization | Bezier curve pathing and smooth micro-movements for natural tracking |
+| Auto-Wall | Penetration checks to ensure line-of-sight before firing |
+| Recoil Control | Smoothly counteracts weapon kick (Standalone RCS available) |
+| Prediction | Dynamic ping-based lead for moving targets |
 | Target | Head, neck, chest, stomach, body, legs |
+| Extras | Team check, Visible only, Sticky aim, FOV customization |
 
-### Silent aim
+### Silent Aim (Advanced Targeting)
 
 Same targeting rules, on its own key (default left mouse).
 
 | Control | What it does |
 | --- | --- |
-| Chance | `0` never fires silent. `100` always does. Values in between roll once per press |
-| Prediction | Optional lead, kept close to the selected bone |
+| Chance | `0` never activates. `100` always activates. Values in between roll once per press |
+| Backtrack | Time manipulation to rewind target positions based on tick history |
+| Hardware Input | Route inputs via hardware/driver level for maximum stealth |
 | Target | The bone you pick is the bone it uses — Head stays on the head |
 | Draw FOV | Circle on the overlay |
 
-### ESP
+### ESP (Visual Enhancements)
 
-| Overlay | Visuals | Colors |
+| Overlay | Visuals | Extras |
 | --- | --- | --- |
-| Box | Skeleton | Per-feature visible / hidden swatches |
-| Name | Snaplines | Or one tint for every feature |
-| Health | Range (25–2000) | Dark, Snowy, Matcha, and more |
-| Distance | Team check | |
+| Box / Name / Health | Skeleton / Distance | 2D Radar Overlay |
+| Out-of-FOV Arrows | Directional indicators for off-screen targets | Spectator Warning System |
+| Memory Chams | Direct material and color overrides in memory | Custom Hit/Kill Sounds |
 
-### Rage
+### Movement & Exploits
 
-Jump power, infinite jump, and noclip. Nothing else lives on that tab.
+| Category | Features |
+| --- | --- |
+| Movement | Speedhack, Fly, No-Clip (Collision Bypass), AirStuck (Velocity Freezing) |
+| World | World Modulation (Fullbright/Night Mode), Freecam (Detached Camera) |
+| Disruption | Fake Lag (Packet Choking), Anti-Aim (Jitter/Spin), Silent Walk |
+| Utility | Click-to-Teleport, Hitbox Expander, Item Magnet, Name Stealer |
+| Experimental | Event Flooder, Chat Spammer |
 
 ### Explorer
 
@@ -91,14 +96,16 @@ A live DataModel tree next to the menu.
 - Copy path, goto, destroy, mark / unmark
 - Name, class, and parent for the selected instance
 
-### Settings
+### Settings & Security
 
 | Group | Options |
 | --- | --- |
-| Misc | FPS cap, VSync, menu key |
+| Security | Anti-Reverse Engineering, OBS Bypass (Stream-Proof Overlay) |
+| Configs | Base64 Import/Export string sharing, Customizable Global Keybinds |
+| Misc | FPS cap, VSync, menu key, FOV Changer |
 | Game | Anti-AFK, uncapped FPS, explorer, offset version + refresh |
 | Theme | Colors, shader, particles |
-| Overlay | Watermark, FPS, streamproof, menu opacity, ESP range |
+| Overlay | Watermark, FPS, menu opacity, ESP range |
 
 Configs save and load from the Configs tab. Each file is a plain text preset under `%AppData%\Unlinked\configs`.
 
@@ -113,7 +120,7 @@ Configs save and load from the Configs tab. Each file is a plain text preset und
 | Silent key | Hold to apply silent aim (default Mouse 1) |
 | Aim key | Hold to apply aimbot (default Mouse 2) |
 
-*Note: Typing in text fields (like the Explorer search or config names) automatically suspends cheat hotkeys to prevent accidental activation.*
+*Note: Typing in text fields (like the Explorer search or config names) automatically suspends tool hotkeys to prevent accidental activation.*
 
 ---
 

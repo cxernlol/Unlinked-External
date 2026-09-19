@@ -28,6 +28,8 @@
 #include "gameplay.hpp"
 #include "aim.hpp"
 #include "esp.hpp"
+#include "radar.hpp"
+#include "input.hpp"
 #include "ur/ur.hpp"
 #include "explorer.hpp"
 #include "browse.hpp"
@@ -105,6 +107,7 @@ struct Shell {
     float width = 700.0f;
     float height = 610.0f;
     bool resizing = false;
+    bool hwMouse = false;
 };
 
 struct Combat {
@@ -154,6 +157,9 @@ struct Vision {
     bool visual = false;
     bool custom = false;
     float range = 500.0f;
+    bool radar = false;
+    bool fovArrows = false;
+    bool spectatorWarn = false;
 };
 
 using EspFeat = esp::EspFeat;
@@ -1636,12 +1642,8 @@ static void TickAim( float Scale ) {
     aim::MouseStep Mouse = aim::ComputeSmoothMouseStep( Dx, Dy, Aim.smooth, Dt, RestX, RestY );
     if ( !Mouse.moved )
         return;
-    INPUT Step{ };
-    Step.type = INPUT_MOUSE;
-    Step.mi.dx = Mouse.moveX;
-    Step.mi.dy = Mouse.moveY;
-    Step.mi.dwFlags = MOUSEEVENTF_MOVE;
-    SendInput( 1, &Step, sizeof( Step ) );
+    input::CurrentRoute = Menu.hwMouse ? input::HardwareDriver : input::Standard;
+    input::MoveMouse( Mouse.moveX, Mouse.moveY );
 }
 
 static bool EspDot( const world::Vec3& World, CVector& Out ) {
@@ -2209,6 +2211,13 @@ static void BindFace( ) {
 }
 
 int WINAPI WinMain( HINSTANCE, HINSTANCE, LPSTR, int ) {
+#ifndef _DEBUG
+    if ( IsDebuggerPresent( ) ) return 0;
+    BOOL isRemote = FALSE;
+    CheckRemoteDebuggerPresent( GetCurrentProcess( ), &isRemote );
+    if ( isRemote ) return 0;
+#endif
+
     BindFace( );
 
     char Module[ MAX_PATH ] = { };
