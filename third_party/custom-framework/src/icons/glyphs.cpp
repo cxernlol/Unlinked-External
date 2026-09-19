@@ -181,7 +181,7 @@ static bool Boot( ) {
 
     FaceFromMemory( fa_solid_data, fa_solid_size, Faces[ 0 ] );
     FaceFromMemory( fa_regular_data, fa_regular_size, Faces[ 1 ] );
-    FaceFromMemory( fa_light_data, fa_light_size, Faces[ 2 ] );
+    FaceFromMemory( fa_regular_data, fa_regular_size, Faces[ 2 ] );
     return Faces[ 0 ] != nullptr;
 }
 
