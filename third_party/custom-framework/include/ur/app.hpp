@@ -30,6 +30,7 @@ struct Config {
     bool vsync = true;
     bool docking = false;
     bool persist = true;
+    bool resizable = false;
     const char* layout = "ur.layout";
     const char* settings = "ur.settings";
     bool media = false;

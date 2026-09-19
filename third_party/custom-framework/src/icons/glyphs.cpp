@@ -18,6 +18,7 @@
 #include <wrl/client.h>
 
 #include <fstream>
+#include "../../../../src/embedded_fonts.hpp"
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -111,6 +112,62 @@ static bool FaceFromFile( const std::string& Path, ComPtr< IDWriteFontFace >& Fa
     return SUCCEEDED( Write->CreateFontFace( FaceType, 1, Files, 0, DWRITE_FONT_SIMULATIONS_NONE, &Face ) );
 }
 
+static bool FaceFromMemory( const unsigned char* Bytes, size_t Length, ComPtr< IDWriteFontFace >& Face ) {
+    if ( !Bytes || Length == 0 || !Write )
+        return false;
+
+    ComPtr< IDWriteFontFileStream > Unpacked;
+    DWRITE_CONTAINER_TYPE Kind = Write->AnalyzeContainerType( Bytes, ( UINT32 )Length );
+    HRESULT Status = E_FAIL;
+    if ( Kind == DWRITE_CONTAINER_TYPE_WOFF2 || Kind == DWRITE_CONTAINER_TYPE_WOFF )
+        Status = Write->UnpackFontFile( Kind, Bytes, ( UINT32 )Length, &Unpacked );
+
+    std::vector< unsigned char > FontBytes;
+    if ( SUCCEEDED( Status ) && Unpacked ) {
+        UINT64 Size = 0;
+        if ( FAILED( Unpacked->GetFileSize( &Size ) ) || Size == 0 || Size > 16ull * 1024ull * 1024ull )
+            return false;
+        const void* Piece = nullptr;
+        void* Cookie = nullptr;
+        if ( FAILED( Unpacked->ReadFileFragment( &Piece, 0, Size, &Cookie ) ) )
+            return false;
+        FontBytes.assign( ( const unsigned char* )Piece, ( const unsigned char* )Piece + ( size_t )Size );
+        Unpacked->ReleaseFileFragment( Cookie );
+    } else {
+        FontBytes.assign( Bytes, Bytes + Length );
+    }
+
+    wchar_t TempDir[ MAX_PATH ] = { };
+    wchar_t TempFile[ MAX_PATH ] = { };
+    GetTempPathW( MAX_PATH, TempDir );
+    GetTempFileNameW( TempDir, L"ur", 0, TempFile );
+    HANDLE Disk = CreateFileW( TempFile, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_TEMPORARY, nullptr );
+    if ( Disk == INVALID_HANDLE_VALUE )
+        return false;
+    DWORD Wrote = 0;
+    WriteFile( Disk, FontBytes.data( ), ( DWORD )FontBytes.size( ), &Wrote, nullptr );
+    CloseHandle( Disk );
+
+    ComPtr< IDWriteFontFile > File;
+    HRESULT FileStatus = Write->CreateFontFileReference( TempFile, nullptr, &File );
+    if ( FAILED( FileStatus ) || !File ) {
+        DeleteFileW( TempFile );
+        return false;
+    }
+
+    TempFiles.push_back( TempFile );
+
+    BOOL Supported = FALSE;
+    DWRITE_FONT_FILE_TYPE FileType = DWRITE_FONT_FILE_TYPE_UNKNOWN;
+    DWRITE_FONT_FACE_TYPE FaceType = DWRITE_FONT_FACE_TYPE_UNKNOWN;
+    UINT32 FacesOnFile = 0;
+    if ( FAILED( File->Analyze( &Supported, &FileType, &FaceType, &FacesOnFile ) ) || !Supported || FacesOnFile == 0 )
+        return false;
+
+    IDWriteFontFile* Files[ 1 ] = { File.Get( ) };
+    return SUCCEEDED( Write->CreateFontFace( FaceType, 1, Files, 0, DWRITE_FONT_SIMULATIONS_NONE, &Face ) );
+}
+
 static bool Boot( ) {
     if ( Write )
         return Faces[ 0 ] != nullptr;
@@ -122,9 +179,9 @@ static bool Boot( ) {
     if ( FAILED( CoCreateInstance( CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS( &Imaging ) ) ) )
         return false;
 
-    FaceFromFile( config::asset( "assets\\icons\\fontawesome\\fa-solid-900.woff2" ), Faces[ 0 ] );
-    FaceFromFile( config::asset( "assets\\icons\\fontawesome\\fa-regular-400.woff2" ), Faces[ 1 ] );
-    FaceFromFile( config::asset( "assets\\icons\\fontawesome\\fa-light-300.woff2" ), Faces[ 2 ] );
+    FaceFromMemory( fa_solid_data, fa_solid_size, Faces[ 0 ] );
+    FaceFromMemory( fa_regular_data, fa_regular_size, Faces[ 1 ] );
+    FaceFromMemory( fa_light_data, fa_light_size, Faces[ 2 ] );
     return Faces[ 0 ] != nullptr;
 }
 

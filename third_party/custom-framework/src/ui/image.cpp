@@ -98,5 +98,33 @@ unsigned long long file( const char* Path, int Longest ) {
     return Handle;
 }
 
+unsigned long long memory( const unsigned char* Bytes, size_t Length, int Longest ) {
+    if ( !Gfx || !Bytes || Length == 0 )
+        return 0;
+
+    // Cache key by hashing the pointer for simplicity, though this assumes the byte array is static memory (like a header array).
+    std::string Key = "memory:";
+    Key += std::to_string( Longest );
+    Key += ':';
+    Key += std::to_string( (unsigned long long)Bytes );
+
+    auto Found = Cache.find( Key );
+    if ( Found != Cache.end( ) )
+        return Found->second;
+
+    std::vector< unsigned char > Pixels;
+    int Width = 0;
+    int Height = 0;
+    bool Ok = Longest > 0
+        ? Pictures->Decode( Bytes, Length, Pixels, Width, Height, Longest )
+        : Pictures->Decode( Bytes, Length, Pixels, Width, Height );
+    if ( !Ok )
+        return 0;
+
+    unsigned long long Handle = Gfx->CreateImage( Pixels.data( ), Width, Height );
+    Cache[ Key ] = Handle;
+    return Handle;
+}
+
 }
 }

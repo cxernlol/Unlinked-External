@@ -31,6 +31,9 @@
 #include "radar.hpp"
 #include "input.hpp"
 #include "ur/ur.hpp"
+#include "embedded_fonts.hpp"
+#include "logo.hpp"
+#include "tab_icons.hpp"
 #include "explorer.hpp"
 #include "browse.hpp"
 #include "ui/key_labels.hpp"
@@ -60,15 +63,16 @@ static const char* Fonts[ ] = {
 struct TabSpec {
     const char* name;
     const char* id;
-    ur::icons::Icon icon;
+    const unsigned char* icon_data;
+    unsigned int icon_size;
 };
 
 static const TabSpec Tabs[ TabCount ] = {
-    { "Aimbot", "tab.aimbot", ur::icons::Icon::Crosshairs },
-    { "ESP", "tab.esp", ur::icons::Icon::Eye },
-    { "Rage", "tab.rage", ur::icons::Icon::FireFlame },
-    { "Configs", "tab.configs", ur::icons::Icon::Folder },
-    { "Settings", "tab.settings", ur::icons::Icon::Gear }
+    { "Aimbot", "tab.aimbot", icon_aimbot_data, icon_aimbot_size },
+    { "Visual", "tab.esp", icon_visual_data, icon_visual_size },
+    { "Exploits", "tab.rage", icon_exploits_data, icon_exploits_size },
+    { "Configs", "tab.configs", icon_config_data, icon_config_size },
+    { "Settings", "tab.settings", icon_settings_data, icon_settings_size }
 };
 
 struct Shell {
@@ -240,11 +244,11 @@ static offsets::ChannelState LiveCh;
 static bool ChanMouse = false;
 
 static bool KeyWas[ 256 ] = { };
-static char LoadedFaces[ 8 ][ MAX_PATH ] = { };
+static HANDLE LoadedFontHandles[ 8 ] = { 0 };
 static int LoadedFaceCount = 0;
 static CFont TitleFace;
 static float TitleScale = 0.0f;
-static std::string LogoPath;
+// static std::string LogoPath; removed
 
 struct Tone {
     CColor surface;
@@ -518,7 +522,7 @@ static void DrawIce( const CRectangle& Clip, const CRectangle& Fill, float Round
 static void DrawTitle( const CRectangle& Header, float Scale, const char* Title ) {
     EnsureTitle( Scale );
     CVector Size = TitleFace.Measure( Title );
-    unsigned long long Logo = LogoPath.empty( ) ? 0 : ur::image::file( LogoPath.c_str( ), 64 );
+    unsigned long long Logo = ur::image::memory( unlinked_logo_webp, sizeof( unlinked_logo_webp ), 64 );
     ui::RectBounds LogoB;
     float TextX = 0.0f, TextY = 0.0f;
     ui::ComputeTitleLayout( Header.Left, Header.Top, Header.Width, Header.Height,
@@ -586,7 +590,7 @@ static void DrawTab( const CRectangle& Tab, const TabSpec& Spec, int Index, floa
     float LabelX = 0.0f, LabelY = 0.0f;
     ui::ComputeTabItemGeometry( Tab.Left, Tab.Top, Tab.Width, Size.Horizontal, Scale, GlyphB, LabelX, LabelY );
 
-    unsigned long long Icon = ur::glyphs::image( Spec.icon, ( int )( 24.0f * Scale + 0.5f ), ur::glyphs::Weight::Solid );
+    unsigned long long Icon = ur::image::memory( Spec.icon_data, Spec.icon_size, ( int )( 24.0f * Scale + 0.5f ) );
     CColor Ink = Mix( Mix( Style->Faint, Dress.ink, Hover ), Dress.inkHot, Active );
     if ( Icon )
         Canvas->Image( CRectangle( GlyphB.left, GlyphB.top, GlyphB.width, GlyphB.height ), Icon, CRectangle( 0.0f, 0.0f, 1.0f, 1.0f ), Ink, 0.0f );
@@ -2160,52 +2164,29 @@ static void Tick( ) {
     Pace( );
 }
 
-static bool LoadFace( const char* Path ) {
-    if ( AddFontResourceExA( Path, FR_PRIVATE, nullptr ) <= 0 )
-        return false;
-    if ( LoadedFaceCount < 8 )
-        lstrcpynA( LoadedFaces[ LoadedFaceCount++ ], Path, MAX_PATH );
-    return true;
+static bool LoadFaceMem( const unsigned char* data, DWORD size ) {
+    DWORD numFonts = 0;
+    HANDLE h = AddFontMemResourceEx( (void*)data, size, nullptr, &numFonts );
+    if ( h ) {
+        if ( LoadedFaceCount < 8 )
+            LoadedFontHandles[ LoadedFaceCount++ ] = h;
+        return true;
+    }
+    return false;
 }
 
 static void UnloadFaces( ) {
     for ( int Index = 0; Index < LoadedFaceCount; Index++ ) {
-        if ( LoadedFaces[ Index ][ 0 ] )
-            RemoveFontResourceExA( LoadedFaces[ Index ], FR_PRIVATE, nullptr );
+        if ( LoadedFontHandles[ Index ] )
+            RemoveFontMemResourceEx( LoadedFontHandles[ Index ] );
     }
     LoadedFaceCount = 0;
 }
 
 static void BindFace( ) {
-    char Module[ MAX_PATH ] = { };
-    GetModuleFileNameA( nullptr, Module, MAX_PATH );
-    std::string Folder = Module;
-    size_t Slash = Folder.find_last_of( "\\/" );
-    if ( Slash != std::string::npos )
-        Folder = Folder.substr( 0, Slash ) + "\\assets\\fonts\\";
-    else
-        Folder = "assets\\fonts\\";
-
-    const char* Local[ ] = {
-        "Inter-Regular.ttf",
-        "Inter-Medium.ttf",
-        "Inter-SemiBold.ttf",
-        "JetBrainsMono-Regular.ttf",
-        "JetBrainsMono-Medium.ttf",
-        "JetBrainsMono-SemiBold.ttf",
-        "Montserrat-Regular.ttf",
-        "Montserrat-Medium.ttf",
-        "Montserrat-SemiBold.ttf",
-        "Outfit-Regular.ttf",
-        "Outfit-Medium.ttf",
-        "Outfit-SemiBold.ttf",
-        "Poppins-Regular.ttf",
-        "Poppins-Medium.ttf",
-        "Poppins-SemiBold.ttf"
-    };
-
-    for ( const char* Name : Local )
-        LoadFace( ( Folder + Name ).c_str( ) );
+    LoadFaceMem( inter_regular_data, inter_regular_size );
+    LoadFaceMem( inter_medium_data, inter_medium_size );
+    LoadFaceMem( inter_semibold_data, inter_semibold_size );
 }
 
 }
@@ -2222,12 +2203,7 @@ int WINAPI WinMain( HINSTANCE, HINSTANCE, LPSTR, int ) {
 
     char Module[ MAX_PATH ] = { };
     GetModuleFileNameA( nullptr, Module, MAX_PATH );
-    LogoPath = Module;
-    size_t Slash = LogoPath.find_last_of( "\\/" );
-    if ( Slash != std::string::npos )
-        LogoPath = LogoPath.substr( 0, Slash ) + "\\assets\\Unlinked.webp";
-    else
-        LogoPath = "assets\\Unlinked.webp";
+    // LogoPath logic removed because the logo is embedded in memory now.
 
     ur::overlay::Options& Overlay = ur::app::overlay_options( );
     Overlay.topmost = true;
@@ -2239,6 +2215,7 @@ int WINAPI WinMain( HINSTANCE, HINSTANCE, LPSTR, int ) {
 
     ur::app::Config Config;
     Config.title = "Unlinked";
+    Config.resizable = true;
     Config.width = 1280;
     Config.height = 720;
     Config.backend = ur::Backend::DX11;

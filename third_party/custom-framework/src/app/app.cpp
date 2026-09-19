@@ -370,6 +370,8 @@ int run( const Config& Wanted, std::function< void( ) > User ) {
         ExtraStyle |= WS_EX_TOOLWINDOW;
         if ( Overlay.topmost )
             ExtraStyle |= WS_EX_TOPMOST;
+        if ( Active.resizable )
+            WindowStyle |= WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
         overlay::primary_monitor( AnchorLeft, AnchorTop, FullWidth, FullHeight );
     } else {
         RECT Frame = { 0, 0, Active.width, Active.height };
