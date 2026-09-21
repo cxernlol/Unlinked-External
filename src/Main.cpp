@@ -1763,11 +1763,18 @@ static void DrawEspWorld( float Scale ) {
 
         if ( Esp.skeleton ) {
             CColor Joint = FeatColor( FeatSkel, Item.vis );
-            // Dynamic scaling and depth sorting to prevent foreground clutter
+
+            // Dynamic scaling and depth sorting to prevent foreground clutter.
             float SkelDist = Item.dist < 1.0f ? 1.0f : Item.dist;
-            float DepthAlpha = (SkelDist > 500.0f) ? 0.2f : (1.0f - (SkelDist / 500.0f) * 0.8f);
-            Joint.a = static_cast<uint8_t>(Joint.a * DepthAlpha);
-            float SkelThick = Thick * DepthAlpha < 0.5f ? 0.5f : Thick * DepthAlpha;
+            float DepthAlpha = SkelDist > 500.0f
+                ? 0.2f
+                : 1.0f - ( SkelDist / 500.0f ) * 0.8f;
+
+            Joint = Joint.Fade( DepthAlpha );
+
+            float SkelThick = Thick * DepthAlpha < 0.5f
+                ? 0.5f
+                : Thick * DepthAlpha;
 
             int LinkCount = 0;
             const esp::BoneLink* Skeleton = esp::GetSkeletonLinks( Item.r15, LinkCount );
