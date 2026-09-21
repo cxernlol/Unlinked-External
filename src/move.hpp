@@ -198,7 +198,7 @@ inline void TickClip( bool Active ) {
         return;
     static unsigned Last = 0;
     unsigned Now = GetTickCount( );
-    if ( ShouldRescanClip( S.clipOn, Now - Last, 50 ) ) {
+    if ( ShouldRescanClip( S.clipOn, Now - Last ) ) {
         ScanClip( E.localModel );
         Last = Now;
         S.clipOn = true;
