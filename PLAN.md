@@ -37,20 +37,20 @@ Goal: Make aimbot movements appear entirely natural to spectators and recording 
 Implementation: Calculate a curved path with slight, randomized overshoots instead of a linear trajectory. Send these calculated micro-movements to the game externally.
 
 ## Feature 5: Skeleton ESP
-Goal: Provide detailed visual information on enemy posture and orientation.
-Implementation: Use RPM to read the 3D bone matrices (Head, Torso, Joints) of the enemies, project them to the 2D overlay, and draw connecting lines.
+Goal: Render a highly accurate, zero-latency 2D skeletal overlay over enemy models to perfectly track posture, movement, and orientation through walls.
+Implementation: Continuously use RPM on the 3D bone matrix arrays (Head, Neck, Spine, Pelvis, Shoulders, Elbows, Hands, Knees, Feet) for all valid enemy entities. Apply a World-to-Screen (W2S) transformation using the cached `ViewMatrix`. Draw smooth, antialiased connecting lines via ImGui's draw list (`AddLine`), implementing dynamic scaling and depth sorting so skeletons in the distance don't clutter the foreground.
 
 ## Feature 6: FOV Changer (Field of View)
 Goal: Allow the user to widen their field of view beyond the game's normal constraints.
 Implementation: Locate the camera structure in memory and use WPM to overwrite the FOV float value.
 
 ## Feature 7: Backtrack (Time Manipulation)
-Goal: Rewind enemy positions based on tick history so you can shoot where they *were* a few milliseconds ago.
-Implementation: Cache enemy CFrame data over the last ~200ms in a circular buffer. When calculating aimbot or triggerbot logic, use the historical positions based on current ping/tickrate instead of the real-time position.
+Goal: Exploit server-side lag compensation by caching historical tick data, allowing the local client to register hits on enemies where they were up to 400ms in the past.
+Implementation: Establish a highly optimized circular buffer (e.g., `std::deque` or custom ring buffer) to continuously cache the `CFrame` and bone matrix of every enemy entity per tick. Intercept the local player's user command (CUserCmd) generation. When the aimbot/triggerbot engages, identify the optimal historical record based on current ping and server tickrate, then forcefully overwrite the `tick_count` in the outgoing packet to force the server to evaluate the shot against the past position.
 
 ## Feature 8: Standalone Recoil Control System (RCS)
-Goal: Counteract weapon recoil smoothly without necessarily locking onto an enemy, making spray patterns laser-accurate.
-Implementation: Read the camera's current recoil angles or weapon recoil properties from memory. Apply an inverse delta to the mouse input or camera CFrame over time to cancel out the vertical and horizontal kick.
+Goal: Programmatically negate all weapon recoil and visual kickback to achieve pixel-perfect spray control without requiring an active aimbot target.
+Implementation: Continuously RPM the local player's `punchAngle` or equivalent recoil property vector from the active weapon/camera entity. Calculate the delta between the current frame's recoil and the previous frame's recoil. Apply the inverted delta directly to the `ViewAngles` (via WPM) or synthesize counter-movements via `mouse_event` / `SendInput`, applying an adjustable smoothing factor (cubic bezier interpolation) to maintain a legitimate, human-like appearance to server-side anti-cheat heuristics.
 
 ## Feature 9: Auto-Wall (Penetration Check)
 Goal: Ensure the aimbot only snaps to enemies (or the triggerbot only fires) if the bullet can actually penetrate the intervening walls.
@@ -101,8 +101,8 @@ Goal: Instantly acquire all valuable items or weapons without having to physical
 Implementation: Iterate through the workspace to find dropped items or loot containers. Use WPM to overwrite their positional CFrame data, teleporting them directly to the local player's feet.
 
 ## Feature 21: No-Clip (Collision Bypass)
-Goal: Allow the player to walk directly through solid walls, floors, and objects.
-Implementation: Iterate through the local player's character parts and force their `CanCollide` property to false in memory, or hook the physics engine's collision check function to always return false for the local player.
+Goal: Completely bypass client-side collision detection, allowing the player to seamlessly glide through solid map geometry, walls, and sealed doors.
+Implementation: Continuously RPM the local player's character entity to find the `HumanoidRootPart` and individual limb pointers. Use WPM in a high-frequency loop to forcefully toggle the `CanCollide` boolean flags to `false` (typically a 1-byte write at the respective property offset). Alternatively, for more stable execution, locate and overwrite the memory address of the client's global collision mask or hook the physics engine's sweep function to permanently return a pass for the local player entity.
 
 ## Feature 22: Customizable Keybind System
 Goal: Allow users to dynamically bind any feature (aimbot, triggerbot, panic key, etc.) to any keyboard or mouse button, saving preferences persistently.
