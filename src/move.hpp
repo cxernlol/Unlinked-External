@@ -52,7 +52,7 @@ inline bool Down( int Key ) {
     return CurrentVelY < TargetPower ? TargetPower : CurrentVelY;
 }
 
-[[nodiscard]] constexpr bool ShouldRescanClip( bool ClipOn, unsigned int ElapsedMs, unsigned int RescanIntervalMs = 50 ) noexcept {
+[[nodiscard]] constexpr bool ShouldRescanClip( bool ClipOn, unsigned int ElapsedMs, unsigned int RescanIntervalMs = 350 ) noexcept {
     return !ClipOn || ( ElapsedMs > RescanIntervalMs );
 }
 
@@ -198,7 +198,7 @@ inline void TickClip( bool Active ) {
         return;
     static unsigned Last = 0;
     unsigned Now = GetTickCount( );
-    if ( ShouldRescanClip( S.clipOn, Now - Last ) ) {
+    if ( ShouldRescanClip( S.clipOn, Now - Last, 50 ) ) {
         ScanClip( E.localModel );
         Last = Now;
         S.clipOn = true;
