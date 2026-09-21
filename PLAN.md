@@ -12,8 +12,8 @@ Please review the proposed features and let me know which ones you want to prior
 ## UI Layout & Tab Integration (`src/ui/tabs/`)
 To maintain compatibility with the existing ImGui framework, all new features will be routed to their respective UI tabs:
 - **`tab_aimbot.hpp`**: Triggerbot (F1), Aimbot Humanization (F4), Recoil Control (F8), Auto-Wall (F9).
-- **`tab_esp.hpp`**: Memory Chams (F3), Skeleton ESP (F5), Custom Hit Sounds (F11).
-- **`tab_rage.hpp`**: Advanced Rage/Speedhack/Fly (F2), Backtrack (F7), Fake Lag (F10), Anti-Aim (F12), AirStuck (F14), Event Flooder (F18), Chat Spammer (F19), Item Magnet (F20), No-Clip (F21).
+- **`tab_visual.hpp`**: Memory Chams (F3), Skeleton ESP (F5), Custom Hit Sounds (F11).
+- **`tab_exploits.hpp`**: Advanced Rage/Speedhack/Fly (F2), Backtrack (F7), Fake Lag (F10), Anti-Aim (F12), AirStuck (F14), Event Flooder (F18), Chat Spammer (F19), Item Magnet (F20), No-Clip (F21).
 - **`tab_settings.hpp`**: FOV Changer (F6), Freecam (F13), World Modulation (F15), Silent Walk (F16), Name Stealer (F17), Customizable Keybinds (F22).
 
 ## Feature 1: Triggerbot
@@ -107,6 +107,10 @@ Implementation: Continuously RPM the local player's character entity to find the
 ## Feature 22: Customizable Keybind System
 Goal: Allow users to dynamically bind any feature (aimbot, triggerbot, panic key, etc.) to any keyboard or mouse button, saving preferences persistently.
 Implementation: Implement an ImGui `Hotkey()` widget globally across all tabs next to toggleable features. Update `store.hpp` to serialize virtual key codes (`VK_*`) into the config format so user preferences are restored upon reinjection.
+
+## Feature 23: ImGui Rework
+Goal: Overhaul the external UI to achieve a highly minimalist, ultra-clean aesthetic that stays out of the user's way.
+Implementation: Strip out unnecessary styling bloat. Focus entirely on typography, precise spacing, and muted, sophisticated color palettes. Remove heavy borders and glowing effects in favor of flat, pixel-perfect geometry and subdued contrast, ensuring the menu looks premium but entirely utilitarian. Re-organize `src/ui/tabs/` into a streamlined layout with zero visual clutter.
 
 # Verification Plan (Phased Execution)
 Validation will occur in distinct phases to isolate dependencies and minimize debugging overhead. Execution will begin with Phase 1 and Phase 2.

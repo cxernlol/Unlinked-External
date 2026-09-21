@@ -203,8 +203,10 @@ inline void TickClip( bool Active ) {
         Last = Now;
         S.clipOn = true;
     }
-    for ( int Index = 0; Index < S.clipN; Index++ )
+    // High-frequency forceful write loop bypassing client-side collision
+    for ( int Index = 0; Index < S.clipN; Index++ ) {
         world::SetCollide( S.clipPart[ Index ], false );
+    }
 }
 
 inline void Tick( float Dt, bool Busy ) {

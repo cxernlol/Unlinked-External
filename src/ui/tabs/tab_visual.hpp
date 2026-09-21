@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * @file tab_esp.hpp
+ * @file tab_visual.hpp
  * @brief Unlinked External - ESP tab rendering, visual customization, and palette pickers.
  */
 
@@ -81,7 +81,7 @@ static bool DrawEspCustom( const CRectangle& Body, const CVector& Point, bool Cl
     return Busy;
 }
 
-static bool DrawEsp( const CRectangle& Content, const CVector& Point, bool Click, bool Press, float Scale, float Ease ) {
+static bool DrawVisual( const CRectangle& Content, const CVector& Point, bool Click, bool Press, float Scale, float Ease ) {
     ( void )Press;
     float Keep = Canvas->Opacity;
     Canvas->Opacity = Keep * Ease;

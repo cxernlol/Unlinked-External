@@ -49,8 +49,8 @@ constexpr float ExploreWidth = 500.0f;
 constexpr float ExploreHeight = 600.0f;
 constexpr int TabCount = 5;
 constexpr int TabAimbot = 0;
-constexpr int TabEsp = 1;
-constexpr int TabRage = 2;
+constexpr int TabVisual = 1;
+constexpr int TabExploits = 2;
 constexpr int TabConfigs = 3;
 constexpr int TabSettings = 4;
 
@@ -911,8 +911,8 @@ static PageFit FitOf( float Scale ) {
 }
 
 #include "ui/tabs/tab_aimbot.hpp"
-#include "ui/tabs/tab_rage.hpp"
-#include "ui/tabs/tab_esp.hpp"
+#include "ui/tabs/tab_exploits.hpp"
+#include "ui/tabs/tab_visual.hpp"
 #include "ui/tabs/tab_settings.hpp"
 #include "ui/tabs/tab_configs.hpp"
 
@@ -1034,10 +1034,10 @@ static void DrawPage( const CRectangle& Content, const CVector& Point, bool Clic
     Canvas->Opacity = Keep * Ease;
     if ( Menu.tab == TabAimbot )
         Busy = DrawAimbot( Shifted, Hit, Click && Live && !Block, Press && Live && !Block, Scale, 1.0f ) || Busy;
-    else if ( Menu.tab == TabRage )
-        Busy = DrawRage( Shifted, Hit, Click && Live && !Block, Press && Live && !Block, Scale, 1.0f ) || Busy;
-    else if ( Menu.tab == TabEsp )
-        Busy = DrawEsp( Shifted, Hit, Click && Live && !Block, Press && Live && !Block, Scale, 1.0f ) || Busy;
+    else if ( Menu.tab == TabExploits )
+        Busy = DrawExploits( Shifted, Hit, Click && Live && !Block, Press && Live && !Block, Scale, 1.0f ) || Busy;
+    else if ( Menu.tab == TabVisual )
+        Busy = DrawVisual( Shifted, Hit, Click && Live && !Block, Press && Live && !Block, Scale, 1.0f ) || Busy;
     else if ( Menu.tab == TabConfigs )
         Busy = DrawConfigs( Shifted, Hit, Click && Live && !Block, Press && Live && !Block, Scale, 1.0f ) || Busy;
     else if ( Menu.tab == TabSettings )
@@ -1763,6 +1763,19 @@ static void DrawEspWorld( float Scale ) {
 
         if ( Esp.skeleton ) {
             CColor Joint = FeatColor( FeatSkel, Item.vis );
+
+            // Dynamic scaling and depth sorting to prevent foreground clutter.
+            float SkelDist = Item.dist < 1.0f ? 1.0f : Item.dist;
+            float DepthAlpha = SkelDist > 500.0f
+                ? 0.2f
+                : 1.0f - ( SkelDist / 500.0f ) * 0.8f;
+
+            Joint = Joint.Fade( DepthAlpha );
+
+            float SkelThick = Thick * DepthAlpha < 0.5f
+                ? 0.5f
+                : Thick * DepthAlpha;
+
             int LinkCount = 0;
             const esp::BoneLink* Skeleton = esp::GetSkeletonLinks( Item.r15, LinkCount );
             for ( int Link = 0; Link < LinkCount; Link++ ) {
@@ -1770,7 +1783,7 @@ static void DrawEspWorld( float Scale ) {
                 int B = Skeleton[ Link ].to;
                 if ( !On[ A ] || !On[ B ] )
                     continue;
-                Canvas->Line( Dots[ A ], Dots[ B ], Joint, Thick );
+                Canvas->Line( Dots[ A ], Dots[ B ], Joint, SkelThick );
             }
         }
 
