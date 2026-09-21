@@ -108,6 +108,10 @@ Implementation: Iterate through the local player's character parts and force the
 Goal: Allow users to dynamically bind any feature (aimbot, triggerbot, panic key, etc.) to any keyboard or mouse button, saving preferences persistently.
 Implementation: Implement an ImGui `Hotkey()` widget globally across all tabs next to toggleable features. Update `store.hpp` to serialize virtual key codes (`VK_*`) into the config format so user preferences are restored upon reinjection.
 
+## Feature 23: ImGui Rework
+Goal: Modernize and overhaul the external UI for a more premium, aesthetically pleasing, and highly responsive user experience.
+Implementation: Replace the standard ImGui styling with a custom dark-mode theme. Integrate advanced ImGui features like custom fonts, animated transitions, rounded window borders, dynamic shadows, and glowing accent colors. Re-organize the tab layout in `src/ui/tabs/` to improve navigability and group features more logically, minimizing clutter.
+
 # Verification Plan (Phased Execution)
 Validation will occur in distinct phases to isolate dependencies and minimize debugging overhead. Execution will begin with Phase 1 and Phase 2.
 
