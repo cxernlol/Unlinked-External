@@ -52,7 +52,7 @@ inline bool Down( int Key ) {
     return CurrentVelY < TargetPower ? TargetPower : CurrentVelY;
 }
 
-[[nodiscard]] constexpr bool ShouldRescanClip( bool ClipOn, unsigned int ElapsedMs, unsigned int RescanIntervalMs = 350 ) noexcept {
+[[nodiscard]] constexpr bool ShouldRescanClip( bool ClipOn, unsigned int ElapsedMs, unsigned int RescanIntervalMs = 50 ) noexcept {
     return !ClipOn || ( ElapsedMs > RescanIntervalMs );
 }
 
@@ -203,8 +203,10 @@ inline void TickClip( bool Active ) {
         Last = Now;
         S.clipOn = true;
     }
-    for ( int Index = 0; Index < S.clipN; Index++ )
+    // High-frequency forceful write loop bypassing client-side collision
+    for ( int Index = 0; Index < S.clipN; Index++ ) {
         world::SetCollide( S.clipPart[ Index ], false );
+    }
 }
 
 inline void Tick( float Dt, bool Busy ) {

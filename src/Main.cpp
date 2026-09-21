@@ -1763,6 +1763,12 @@ static void DrawEspWorld( float Scale ) {
 
         if ( Esp.skeleton ) {
             CColor Joint = FeatColor( FeatSkel, Item.vis );
+            // Dynamic scaling and depth sorting to prevent foreground clutter
+            float SkelDist = Item.dist < 1.0f ? 1.0f : Item.dist;
+            float DepthAlpha = (SkelDist > 500.0f) ? 0.2f : (1.0f - (SkelDist / 500.0f) * 0.8f);
+            Joint.a = static_cast<uint8_t>(Joint.a * DepthAlpha);
+            float SkelThick = Thick * DepthAlpha < 0.5f ? 0.5f : Thick * DepthAlpha;
+
             int LinkCount = 0;
             const esp::BoneLink* Skeleton = esp::GetSkeletonLinks( Item.r15, LinkCount );
             for ( int Link = 0; Link < LinkCount; Link++ ) {
@@ -1770,7 +1776,7 @@ static void DrawEspWorld( float Scale ) {
                 int B = Skeleton[ Link ].to;
                 if ( !On[ A ] || !On[ B ] )
                     continue;
-                Canvas->Line( Dots[ A ], Dots[ B ], Joint, Thick );
+                Canvas->Line( Dots[ A ], Dots[ B ], Joint, SkelThick );
             }
         }
 
