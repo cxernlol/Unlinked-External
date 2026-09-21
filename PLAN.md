@@ -12,8 +12,8 @@ Please review the proposed features and let me know which ones you want to prior
 ## UI Layout & Tab Integration (`src/ui/tabs/`)
 To maintain compatibility with the existing ImGui framework, all new features will be routed to their respective UI tabs:
 - **`tab_aimbot.hpp`**: Triggerbot (F1), Aimbot Humanization (F4), Recoil Control (F8), Auto-Wall (F9).
-- **`tab_esp.hpp`**: Memory Chams (F3), Skeleton ESP (F5), Custom Hit Sounds (F11).
-- **`tab_rage.hpp`**: Advanced Rage/Speedhack/Fly (F2), Backtrack (F7), Fake Lag (F10), Anti-Aim (F12), AirStuck (F14), Event Flooder (F18), Chat Spammer (F19), Item Magnet (F20), No-Clip (F21).
+- **`tab_visual.hpp`**: Memory Chams (F3), Skeleton ESP (F5), Custom Hit Sounds (F11).
+- **`tab_exploits.hpp`**: Advanced Rage/Speedhack/Fly (F2), Backtrack (F7), Fake Lag (F10), Anti-Aim (F12), AirStuck (F14), Event Flooder (F18), Chat Spammer (F19), Item Magnet (F20), No-Clip (F21).
 - **`tab_settings.hpp`**: FOV Changer (F6), Freecam (F13), World Modulation (F15), Silent Walk (F16), Name Stealer (F17), Customizable Keybinds (F22).
 
 ## Feature 1: Triggerbot

@@ -49,8 +49,8 @@ constexpr float ExploreWidth = 500.0f;
 constexpr float ExploreHeight = 600.0f;
 constexpr int TabCount = 5;
 constexpr int TabAimbot = 0;
-constexpr int TabEsp = 1;
-constexpr int TabRage = 2;
+constexpr int TabVisual = 1;
+constexpr int TabExploits = 2;
 constexpr int TabConfigs = 3;
 constexpr int TabSettings = 4;
 
@@ -911,8 +911,8 @@ static PageFit FitOf( float Scale ) {
 }
 
 #include "ui/tabs/tab_aimbot.hpp"
-#include "ui/tabs/tab_rage.hpp"
-#include "ui/tabs/tab_esp.hpp"
+#include "ui/tabs/tab_exploits.hpp"
+#include "ui/tabs/tab_visual.hpp"
 #include "ui/tabs/tab_settings.hpp"
 #include "ui/tabs/tab_configs.hpp"
 
@@ -1034,10 +1034,10 @@ static void DrawPage( const CRectangle& Content, const CVector& Point, bool Clic
     Canvas->Opacity = Keep * Ease;
     if ( Menu.tab == TabAimbot )
         Busy = DrawAimbot( Shifted, Hit, Click && Live && !Block, Press && Live && !Block, Scale, 1.0f ) || Busy;
-    else if ( Menu.tab == TabRage )
-        Busy = DrawRage( Shifted, Hit, Click && Live && !Block, Press && Live && !Block, Scale, 1.0f ) || Busy;
-    else if ( Menu.tab == TabEsp )
-        Busy = DrawEsp( Shifted, Hit, Click && Live && !Block, Press && Live && !Block, Scale, 1.0f ) || Busy;
+    else if ( Menu.tab == TabExploits )
+        Busy = DrawExploits( Shifted, Hit, Click && Live && !Block, Press && Live && !Block, Scale, 1.0f ) || Busy;
+    else if ( Menu.tab == TabVisual )
+        Busy = DrawVisual( Shifted, Hit, Click && Live && !Block, Press && Live && !Block, Scale, 1.0f ) || Busy;
     else if ( Menu.tab == TabConfigs )
         Busy = DrawConfigs( Shifted, Hit, Click && Live && !Block, Press && Live && !Block, Scale, 1.0f ) || Busy;
     else if ( Menu.tab == TabSettings )
